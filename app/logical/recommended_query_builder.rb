@@ -67,6 +67,13 @@ class RecommendedQueryBuilder < ElasticPostQueryBuilder
     # Pick the rarest tags first — common tags (solo, mammal) are poor discriminators
     selected_tags = @post.categorized_tags.values.flatten.min_by(MAX_TAGS, &:post_count)
 
+    # Anchor the candidate set to posts sharing the rarest scored tag. Without this,
+    # function_score scans every non-deleted post in the index (millions of docs).
+    # Artist/copyright tags are skipped since their weight is 0.0 — anchoring to them
+    # would restrict to an unrelated dimension.
+    rarest_scored = selected_tags.find { |t| WEIGHTS_FOR_TAGS.fetch(t.category_name.to_sym, WEIGHTS_FOR_TAGS[:general]) > 0.0 }
+    must.push({ term: { tags: rarest_scored.name } }) if rarest_scored
+
     functions = [{ random_score: { seed: @post.id, field: "id" } }]
     selected_tags.each do |tag|
       weight = WEIGHTS_FOR_TAGS.fetch(tag.category_name.to_sym, WEIGHTS_FOR_TAGS[:general])
