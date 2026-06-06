@@ -4,12 +4,15 @@ import Offclick from "@/utility/Offclick";
 
 const PostSearch = {};
 
-PostSearch.SUPPORTED_ORDER_ROOTS = [
+PostSearch.SUPPORTED_ORDER_ASC_ROOTS = [
   "score",
   "favcount",
   "created",
   "updated",
   "comment",
+  "mpixels",
+  "filesize",
+  "duration",
   "tagcount",
   "general_tags",
   "artist_tags",
@@ -21,7 +24,13 @@ PostSearch.SUPPORTED_ORDER_ROOTS = [
   "meta_tags",
   "lore_tags",
 ];
-PostSearch.SUPPORTED_ORDER_VALUES = PostSearch.SUPPORTED_ORDER_ROOTS.flatMap(root => [root, root + "_asc"]);
+PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES = [
+  "landscape",
+  "portrait",
+];
+PostSearch.SUPPORTED_ORDER_VALUES = PostSearch.SUPPORTED_ORDER_ASC_ROOTS
+  .flatMap(root => [root, root + "_asc"])
+  .concat(PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES);
 PostSearch.ORDER_CUSTOM = "__custom";
 
 PostSearch.initialize_input = function ($form) {
@@ -139,20 +148,21 @@ PostSearch.parse_order_token = function (text) {
   let value = PostSearch.unquote_metatag_value(match[2]).toLowerCase();
   const negated = match[1] === "-";
 
+  if (PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES.includes(value)) {
+    return negated ? PostSearch.ORDER_CUSTOM : value;
+  }
+
   if (value.endsWith("_desc")) value = value.slice(0, -5);
 
-  if (!PostSearch.SUPPORTED_ORDER_ROOTS.includes(value) && !PostSearch.SUPPORTED_ORDER_ROOTS.includes(value.replace(/_asc$/, "")))
+  const root = value.replace(/_asc$/, "");
+  if (!PostSearch.SUPPORTED_ORDER_ASC_ROOTS.includes(root)) {
     return PostSearch.ORDER_CUSTOM;
+  }
 
-  let root = value.replace(/_asc$/, "");
   let order = value.endsWith("_asc") ? root + "_asc" : root;
 
   if (negated) {
     order = order.endsWith("_asc") ? root : root + "_asc";
-  }
-
-  if (!PostSearch.SUPPORTED_ORDER_ROOTS.includes(root)) {
-    order = PostSearch.ORDER_CUSTOM;
   }
 
   return order;

@@ -42,6 +42,16 @@
               <%= tag.option("Comments (desc)", value: "comment") %>
               <%= tag.option("Comments (asc)", value: "comment_asc") %>
             <% end %>
+            <%= tag.optgroup(label: "Media") do %>
+              <%= tag.option("Resolution (desc)", value: "mpixels") %>
+              <%= tag.option("Resolution (asc)", value: "mpixels_asc") %>
+              <%= tag.option("File size (desc)", value: "filesize") %>
+              <%= tag.option("File size (asc)", value: "filesize_asc") %>
+              <%= tag.option("Landscape", value: "landscape") %>
+              <%= tag.option("Portrait", value: "portrait") %>
+              <%= tag.option("Duration (desc)", value: "duration") %>
+              <%= tag.option("Duration (asc)", value: "duration_asc") %>
+            <% end %>
             <%= tag.optgroup(label: "Tags") do %>
               <%= tag.option("Tag count (desc)", value: "tagcount") %>
               <%= tag.option("Tag count (asc)", value: "tagcount_asc") %>
