@@ -9,7 +9,10 @@ PostSearch.SUPPORTED_ORDER_ASC_ROOTS = [
   "favcount",
   "created",
   "updated",
+  "change",
   "comment",
+  "comment_count",
+  "comment_bumped",
   "mpixels",
   "filesize",
   "duration",
@@ -23,14 +26,23 @@ PostSearch.SUPPORTED_ORDER_ASC_ROOTS = [
   "invalid_tags",
   "meta_tags",
   "lore_tags",
+  "md5",
+  "note",
 ];
 PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES = [
+  "random",
+  "hot",
   "landscape",
   "portrait",
 ];
+PostSearch.SUPPORTED_ORDER_EXPLICIT_VALUES = [
+  "id",
+  "id_desc",
+];
 PostSearch.SUPPORTED_ORDER_VALUES = PostSearch.SUPPORTED_ORDER_ASC_ROOTS
   .flatMap(root => [root, root + "_asc"])
-  .concat(PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES);
+  .concat(PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES)
+  .concat(PostSearch.SUPPORTED_ORDER_EXPLICIT_VALUES);
 PostSearch.ORDER_CUSTOM = "__custom";
 
 PostSearch.initialize_input = function ($form) {
@@ -150,6 +162,11 @@ PostSearch.parse_order_token = function (text) {
 
   if (PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES.includes(value)) {
     return negated ? PostSearch.ORDER_CUSTOM : value;
+  }
+
+  if (PostSearch.SUPPORTED_ORDER_EXPLICIT_VALUES.includes(value)) {
+    if (!negated) return value;
+    return value === "id" ? "id_desc" : "id";
   }
 
   if (value.endsWith("_desc")) value = value.slice(0, -5);
