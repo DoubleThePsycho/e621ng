@@ -4,6 +4,9 @@ import Offclick from "@/utility/Offclick";
 
 const PostSearch = {};
 
+PostSearch.SUPPORTED_ORDER_ROOTS = ["score", "favcount", "created", "updated", "comment"];
+PostSearch.ORDER_CUSTOM = "__custom";
+
 PostSearch.initialize_input = function ($form) {
   const $textarea = $form.find("textarea[name='tags']").first();
   if (!$textarea.length) return;
@@ -27,6 +30,172 @@ PostSearch.initialize_input = function ($form) {
     $textarea.css("height", 0);
     $textarea.css("height", element.scrollHeight + "px");
   }
+};
+
+PostSearch.initialize_advanced_search = function ($section) {
+  const $textarea = $section.find("textarea[name='tags']").first();
+  const $sort = $section.find("[data-advanced-search='sort']").first();
+  const $direction = $section.find("[data-advanced-search='direction']").first();
+  const $inpool = $section.find("[data-advanced-search='inpool']").first();
+
+  if (!$textarea.length || !$sort.length || !$direction.length || !$inpool.length) return;
+
+  const syncControls = function () {
+    const state = PostSearch.advanced_search_state($textarea.val() + "");
+    $sort.val(state.order.root);
+    $direction.val(state.order.direction);
+    $direction.prop("disabled", !state.order.root || state.order.root === PostSearch.ORDER_CUSTOM);
+    $inpool.val(state.inpool);
+  };
+
+  const updateOrder = function () {
+    const root = $sort.val();
+    const direction = $direction.val();
+
+    $textarea.val(PostSearch.replace_order_metatags($textarea.val() + "", root, direction));
+    $textarea.trigger("input");
+    syncControls();
+  };
+
+  const updateInpool = function () {
+    $textarea.val(PostSearch.replace_inpool_metatags($textarea.val() + "", $inpool.val()));
+    $textarea.trigger("input");
+    syncControls();
+  };
+
+  $sort.on("change", updateOrder);
+  $direction.on("change", updateOrder);
+  $inpool.on("change", updateInpool);
+
+  syncControls();
+};
+
+PostSearch.advanced_search_state = function (query) {
+  const state = {
+    order: { root: "", direction: "desc" },
+    inpool: "",
+  };
+
+  for (const token of PostSearch.scan_top_level_tokens(query)) {
+    const order = PostSearch.parse_order_token(token.text);
+    if (order) state.order = order;
+
+    const inpool = PostSearch.parse_inpool_token(token.text);
+    if (inpool !== null) state.inpool = inpool;
+  }
+
+  return state;
+};
+
+PostSearch.scan_top_level_tokens = function (query) {
+  const tokens = [];
+  let depth = 0;
+  let quoted = false;
+  let start = null;
+  let startDepth = 0;
+
+  for (let i = 0; i <= query.length; i++) {
+    const char = query[i] || "";
+    const atEnd = i === query.length;
+    const whitespace = atEnd || /\s/.test(char);
+
+    if (start === null && !atEnd && !whitespace) {
+      start = i;
+      startDepth = depth;
+    }
+
+    if (whitespace && !quoted && start !== null) {
+      const text = query.slice(start, i);
+      if (startDepth === 0) tokens.push({ text, start, end: i });
+      start = null;
+    }
+
+    if (atEnd) continue;
+    if (char === "\"") quoted = !quoted;
+    if (quoted) continue;
+
+    if (char === "(") depth += 1;
+    if (char === ")" && depth > 0) depth -= 1;
+  }
+
+  return tokens;
+};
+
+PostSearch.parse_order_token = function (text) {
+  const match = text.match(/^(-?)order:(.+)$/i);
+  if (!match) return null;
+
+  let value = PostSearch.unquote_metatag_value(match[2]).toLowerCase();
+  const negated = match[1] === "-";
+
+  if (value.endsWith("_desc")) value = value.slice(0, -5);
+
+  if (!PostSearch.SUPPORTED_ORDER_ROOTS.includes(value) && !PostSearch.SUPPORTED_ORDER_ROOTS.includes(value.replace(/_asc$/, "")))
+    return { root: PostSearch.ORDER_CUSTOM, direction: "desc" };
+
+  let direction = value.endsWith("_asc") ? "asc" : "desc";
+  let root = value.replace(/_asc$/, "");
+
+  if (negated) {
+    direction = direction === "asc" ? "desc" : "asc";
+  }
+
+  if (!PostSearch.SUPPORTED_ORDER_ROOTS.includes(root)) {
+    root = PostSearch.ORDER_CUSTOM;
+    direction = "desc";
+  }
+
+  return { root, direction };
+};
+
+PostSearch.parse_inpool_token = function (text) {
+  const match = text.match(/^inpool:(true|false)$/i);
+  if (!match) return null;
+  return match[1].toLowerCase();
+};
+
+PostSearch.unquote_metatag_value = function (value) {
+  if (value.startsWith("\"") && value.endsWith("\"")) return value.slice(1, -1);
+  return value;
+};
+
+PostSearch.replace_order_metatags = function (query, root, direction) {
+  const newToken = root && root !== PostSearch.ORDER_CUSTOM
+    ? "order:" + root + (direction === "asc" ? "_asc" : "")
+    : "";
+
+  return PostSearch.replace_top_level_metatags(query, (token) => !!PostSearch.parse_order_token(token), newToken);
+};
+
+PostSearch.replace_inpool_metatags = function (query, value) {
+  const newToken = value ? "inpool:" + value : "";
+  return PostSearch.replace_top_level_metatags(query, (token) => PostSearch.parse_inpool_token(token) !== null, newToken);
+};
+
+PostSearch.replace_top_level_metatags = function (query, matcher, newToken) {
+  const tokens = PostSearch.scan_top_level_tokens(query).filter(token => matcher(token.text));
+  let result = query;
+
+  for (const token of tokens.reverse()) {
+    result = PostSearch.remove_token_range(result, token.start, token.end);
+  }
+
+  result = result.trim();
+  if (newToken) result = [result, newToken].filter(n => n).join(" ");
+
+  return result;
+};
+
+PostSearch.remove_token_range = function (query, start, end) {
+  let removeStart = start;
+  let removeEnd = end;
+
+  while (removeEnd < query.length && /\s/.test(query[removeEnd])) removeEnd += 1;
+  if (removeEnd === end) {
+    while (removeStart > 0 && /\s/.test(query[removeStart - 1])) removeStart -= 1;
+  }
+
+  return query.slice(0, removeStart) + query.slice(removeEnd);
 };
 
 PostSearch.initialize_wiki_preview = function ($preview) {
@@ -143,7 +312,9 @@ PostSearch.initialize_controls = function () {
 $(() => {
 
   $(".post-search").each((index, element) => {
-    PostSearch.initialize_input($(element));
+    const $element = $(element);
+    PostSearch.initialize_input($element);
+    PostSearch.initialize_advanced_search($element);
   });
 
   if (!Page.matches("posts") && !Page.matches("favorites"))

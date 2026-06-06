@@ -9,7 +9,45 @@
       <%= hidden_field_tag :random, params[:random] %>
     <% end %>
 
-    <%= text_area_tag("tags", tags, placeholder: "Search posts by tag", rows: 1, data: { hotkey: "search", autocomplete: "tag-query" }) %>
-    <%= tag.button(svg_icon(:search), type: "submit", title: "Search") %>
+    <div class="post-search-input-row">
+      <%= text_area_tag("tags", tags, placeholder: "Search posts by tag", rows: 1, data: { hotkey: "search", autocomplete: "tag-query" }) %>
+      <%= tag.button(svg_icon(:search), type: "submit", title: "Search") %>
+    </div>
+
+    <details class="post-advanced-search">
+      <summary>Advanced search</summary>
+
+      <div class="post-advanced-search-controls">
+        <label>
+          Sort
+          <%= content_tag(:select, class: "post-advanced-search-sort", data: { advanced_search: "sort" }) do %>
+            <%= tag.option("Default", value: "") %>
+            <%= tag.option("Score", value: "score") %>
+            <%= tag.option("Favorites", value: "favcount") %>
+            <%= tag.option("Created", value: "created") %>
+            <%= tag.option("Updated", value: "updated") %>
+            <%= tag.option("Comments", value: "comment") %>
+            <%= tag.option("Custom", value: "__custom", hidden: true) %>
+          <% end %>
+        </label>
+
+        <label>
+          Direction
+          <%= content_tag(:select, class: "post-advanced-search-direction", data: { advanced_search: "direction" }) do %>
+            <%= tag.option("Descending", value: "desc") %>
+            <%= tag.option("Ascending", value: "asc") %>
+          <% end %>
+        </label>
+
+        <label>
+          In pool
+          <%= content_tag(:select, class: "post-advanced-search-inpool", data: { advanced_search: "inpool" }) do %>
+            <%= tag.option("Any", value: "") %>
+            <%= tag.option("Yes", value: "true") %>
+            <%= tag.option("No", value: "false") %>
+          <% end %>
+        </label>
+      </div>
+    </details>
   <% end %>
 </section>
