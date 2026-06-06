@@ -5,6 +5,7 @@ import Offclick from "@/utility/Offclick";
 const PostSearch = {};
 
 PostSearch.SUPPORTED_ORDER_ROOTS = ["score", "favcount", "created", "updated", "comment"];
+PostSearch.SUPPORTED_ORDER_VALUES = PostSearch.SUPPORTED_ORDER_ROOTS.flatMap(root => [root, root + "_asc"]);
 PostSearch.ORDER_CUSTOM = "__custom";
 
 PostSearch.initialize_input = function ($form) {
@@ -35,24 +36,18 @@ PostSearch.initialize_input = function ($form) {
 PostSearch.initialize_advanced_search = function ($section) {
   const $textarea = $section.find("textarea[name='tags']").first();
   const $sort = $section.find("[data-advanced-search='sort']").first();
-  const $direction = $section.find("[data-advanced-search='direction']").first();
   const $inpool = $section.find("[data-advanced-search='inpool']").first();
 
-  if (!$textarea.length || !$sort.length || !$direction.length || !$inpool.length) return;
+  if (!$textarea.length || !$sort.length || !$inpool.length) return;
 
   const syncControls = function () {
     const state = PostSearch.advanced_search_state($textarea.val() + "");
-    $sort.val(state.order.root);
-    $direction.val(state.order.direction);
-    $direction.prop("disabled", !state.order.root || state.order.root === PostSearch.ORDER_CUSTOM);
+    $sort.val(state.order);
     $inpool.val(state.inpool);
   };
 
   const updateOrder = function () {
-    const root = $sort.val();
-    const direction = $direction.val();
-
-    $textarea.val(PostSearch.replace_order_metatags($textarea.val() + "", root, direction));
+    $textarea.val(PostSearch.replace_order_metatags($textarea.val() + "", $sort.val()));
     $textarea.trigger("input");
     syncControls();
   };
@@ -64,7 +59,6 @@ PostSearch.initialize_advanced_search = function ($section) {
   };
 
   $sort.on("change", updateOrder);
-  $direction.on("change", updateOrder);
   $inpool.on("change", updateInpool);
 
   syncControls();
@@ -72,7 +66,7 @@ PostSearch.initialize_advanced_search = function ($section) {
 
 PostSearch.advanced_search_state = function (query) {
   const state = {
-    order: { root: "", direction: "desc" },
+    order: "",
     inpool: "",
   };
 
@@ -131,21 +125,20 @@ PostSearch.parse_order_token = function (text) {
   if (value.endsWith("_desc")) value = value.slice(0, -5);
 
   if (!PostSearch.SUPPORTED_ORDER_ROOTS.includes(value) && !PostSearch.SUPPORTED_ORDER_ROOTS.includes(value.replace(/_asc$/, "")))
-    return { root: PostSearch.ORDER_CUSTOM, direction: "desc" };
+    return PostSearch.ORDER_CUSTOM;
 
-  let direction = value.endsWith("_asc") ? "asc" : "desc";
   let root = value.replace(/_asc$/, "");
+  let order = value.endsWith("_asc") ? root + "_asc" : root;
 
   if (negated) {
-    direction = direction === "asc" ? "desc" : "asc";
+    order = order.endsWith("_asc") ? root : root + "_asc";
   }
 
   if (!PostSearch.SUPPORTED_ORDER_ROOTS.includes(root)) {
-    root = PostSearch.ORDER_CUSTOM;
-    direction = "desc";
+    order = PostSearch.ORDER_CUSTOM;
   }
 
-  return { root, direction };
+  return order;
 };
 
 PostSearch.parse_inpool_token = function (text) {
@@ -159,9 +152,11 @@ PostSearch.unquote_metatag_value = function (value) {
   return value;
 };
 
-PostSearch.replace_order_metatags = function (query, root, direction) {
-  const newToken = root && root !== PostSearch.ORDER_CUSTOM
-    ? "order:" + root + (direction === "asc" ? "_asc" : "")
+PostSearch.replace_order_metatags = function (query, value) {
+  if (value === PostSearch.ORDER_CUSTOM) return query;
+
+  const newToken = value && PostSearch.SUPPORTED_ORDER_VALUES.includes(value)
+    ? "order:" + value
     : "";
 
   return PostSearch.replace_top_level_metatags(query, (token) => !!PostSearch.parse_order_token(token), newToken);

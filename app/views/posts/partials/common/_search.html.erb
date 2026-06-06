@@ -22,20 +22,17 @@
           Sort
           <%= content_tag(:select, class: "post-advanced-search-sort", data: { advanced_search: "sort" }) do %>
             <%= tag.option("Default", value: "") %>
-            <%= tag.option("Score", value: "score") %>
-            <%= tag.option("Favorites", value: "favcount") %>
-            <%= tag.option("Created", value: "created") %>
-            <%= tag.option("Updated", value: "updated") %>
-            <%= tag.option("Comments", value: "comment") %>
+            <%= tag.option("Score descending", value: "score") %>
+            <%= tag.option("Score ascending", value: "score_asc") %>
+            <%= tag.option("Favorites descending", value: "favcount") %>
+            <%= tag.option("Favorites ascending", value: "favcount_asc") %>
+            <%= tag.option("Created descending", value: "created") %>
+            <%= tag.option("Created ascending", value: "created_asc") %>
+            <%= tag.option("Updated descending", value: "updated") %>
+            <%= tag.option("Updated ascending", value: "updated_asc") %>
+            <%= tag.option("Comments descending", value: "comment") %>
+            <%= tag.option("Comments ascending", value: "comment_asc") %>
             <%= tag.option("Custom", value: "__custom", hidden: true) %>
-          <% end %>
-        </label>
-
-        <label>
-          Direction
-          <%= content_tag(:select, class: "post-advanced-search-direction", data: { advanced_search: "direction" }) do %>
-            <%= tag.option("Descending", value: "desc") %>
-            <%= tag.option("Ascending", value: "asc") %>
           <% end %>
         </label>
 
