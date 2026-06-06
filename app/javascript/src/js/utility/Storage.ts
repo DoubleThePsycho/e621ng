@@ -32,6 +32,7 @@ export default class LStorage {
     WikiExcerpt: 1 as 0 | 1 | 2,
     Fullscreen: false,
     StickySearch: false,
+    AdvancedSearchOpen: false,
     SkipVariants: false, // True to stop limiting videos to 1080p in Original mode
     Contain: false,
     Size: "m" as "s" | "m" | "l",
@@ -108,6 +109,7 @@ const StorageKeys: StorageConfig = {
     WikiExcerpt: "e6.posts.wiki",
     Fullscreen: "e6.posts.fusk",
     StickySearch: "e6.posts.ssearch",
+    AdvancedSearchOpen: "e6.posts.advanced_search_open",
     SkipVariants: "e6.posts.scvideos",
     Contain: "e6.posts.contain",
     Size: "e6.posts.size",

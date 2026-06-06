@@ -72,6 +72,16 @@ PostSearch.initialize_input = function ($form) {
   }
 };
 
+PostSearch.initialize_advanced_search_details = function ($section) {
+  const $details = $section.find("details.post-advanced-search").first();
+  if (!$details.length) return;
+
+  $details.prop("open", LStorage.Posts.AdvancedSearchOpen);
+  $details.on("toggle", (event) => {
+    LStorage.Posts.AdvancedSearchOpen = event.currentTarget.open;
+  });
+};
+
 PostSearch.initialize_advanced_search = function ($section) {
   const $textarea = $section.find("textarea[name=tags]").first();
   const $sort = $section.find("[data-advanced-search=sort]").first();
@@ -405,6 +415,7 @@ $(() => {
   $(".post-search").each((index, element) => {
     const $element = $(element);
     PostSearch.initialize_input($element);
+    PostSearch.initialize_advanced_search_details($element);
     PostSearch.initialize_advanced_search($element);
   });
 
