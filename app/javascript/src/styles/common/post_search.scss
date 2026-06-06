@@ -109,14 +109,20 @@
 
     .post-advanced-search-controls {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.35rem 0.6rem;
+      flex-direction: column;
+      gap: 0.35rem;
       padding-top: 0.3rem;
+
+      .post-advanced-search-row {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        width: 100%;
+        min-width: 0;
+      }
 
       label {
         display: flex;
-        flex: 0 1 auto;
         align-items: center;
         gap: 0.3rem;
         min-width: 0;
@@ -125,9 +131,28 @@
       }
 
       select {
-        max-width: 7.5rem;
         min-width: 0;
         font-size: inherit;
+        background-color: var(--color-section);
+        color: var(--color-text);
+      }
+
+      .post-advanced-search-sort-label {
+        flex: 1 1 auto;
+      }
+
+      .post-advanced-search-sort {
+        flex: 1 1 auto;
+        max-width: none;
+      }
+
+      .post-advanced-search-direction-hidden {
+        display: none;
+      }
+
+      .post-advanced-search-direction-select {
+        flex: 0 0 auto;
+        max-width: 4.5rem;
       }
 
       .post-advanced-search-inpool {

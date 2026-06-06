@@ -44,6 +44,8 @@ PostSearch.SUPPORTED_ORDER_VALUES = PostSearch.SUPPORTED_ORDER_ASC_ROOTS
   .concat(PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES)
   .concat(PostSearch.SUPPORTED_ORDER_EXPLICIT_VALUES);
 PostSearch.ORDER_CUSTOM = "__custom";
+PostSearch.ORDER_DESC = "desc";
+PostSearch.ORDER_ASC = "asc";
 
 PostSearch.initialize_input = function ($form) {
   const $textarea = $form.find("textarea[name='tags']").first();
@@ -71,20 +73,37 @@ PostSearch.initialize_input = function ($form) {
 };
 
 PostSearch.initialize_advanced_search = function ($section) {
-  const $textarea = $section.find("textarea[name='tags']").first();
-  const $sort = $section.find("[data-advanced-search='sort']").first();
-  const $inpool = $section.find("[data-advanced-search='inpool']").first();
+  const $textarea = $section.find("textarea[name=tags]").first();
+  const $sort = $section.find("[data-advanced-search=sort]").first();
+  const $direction = $section.find("[data-advanced-search=direction]").first();
+  const $inpool = $section.find("[data-advanced-search=inpool]").first();
 
-  if (!$textarea.length || !$sort.length || !$inpool.length) return;
+  if (!$textarea.length || !$sort.length || !$direction.length || !$inpool.length) return;
+
+  const syncDirectionControl = function () {
+    const hasDirection = PostSearch.order_has_direction($sort.val());
+    $direction.prop("disabled", !hasDirection);
+    $direction.toggleClass("post-advanced-search-direction-hidden", !hasDirection);
+  };
 
   const syncControls = function () {
     const state = PostSearch.advanced_search_state($textarea.val() + "");
     $sort.val(state.order);
+    $direction.val(state.direction);
     $inpool.val(state.inpool);
+    syncDirectionControl();
   };
 
   const updateOrder = function () {
-    $textarea.val(PostSearch.replace_order_metatags($textarea.val() + "", $sort.val()));
+    syncDirectionControl();
+    $textarea.val(PostSearch.replace_order_metatags($textarea.val() + "", $sort.val(), $direction.val()));
+    $textarea.trigger("input");
+    syncControls();
+  };
+
+  const updateDirection = function () {
+    if (!PostSearch.order_has_direction($sort.val())) return syncControls();
+    $textarea.val(PostSearch.replace_order_metatags($textarea.val() + "", $sort.val(), $direction.val()));
     $textarea.trigger("input");
     syncControls();
   };
@@ -97,6 +116,7 @@ PostSearch.initialize_advanced_search = function ($section) {
 
   $textarea.on("input", syncControls);
   $sort.on("change", updateOrder);
+  $direction.on("change", updateDirection);
   $inpool.on("change", updateInpool);
 
   syncControls();
@@ -105,12 +125,16 @@ PostSearch.initialize_advanced_search = function ($section) {
 PostSearch.advanced_search_state = function (query) {
   const state = {
     order: "",
+    direction: PostSearch.ORDER_DESC,
     inpool: "",
   };
 
   for (const token of PostSearch.scan_top_level_tokens(query)) {
     const order = PostSearch.parse_order_token(token.text);
-    if (order) state.order = order;
+    if (order) {
+      state.order = order.value;
+      state.direction = order.direction;
+    }
 
     const inpool = PostSearch.parse_inpool_token(token.text);
     if (inpool !== null) state.inpool = inpool;
@@ -161,28 +185,41 @@ PostSearch.parse_order_token = function (text) {
   const negated = match[1] === "-";
 
   if (PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES.includes(value)) {
-    return negated ? PostSearch.ORDER_CUSTOM : value;
+    return {
+      value: negated ? PostSearch.ORDER_CUSTOM : value,
+      direction: PostSearch.ORDER_DESC,
+    };
   }
 
   if (PostSearch.SUPPORTED_ORDER_EXPLICIT_VALUES.includes(value)) {
-    if (!negated) return value;
-    return value === "id" ? "id_desc" : "id";
+    if (negated) value = value === "id" ? "id_desc" : "id";
+
+    return {
+      value: "id",
+      direction: value === "id" ? PostSearch.ORDER_ASC : PostSearch.ORDER_DESC,
+    };
   }
 
   if (value.endsWith("_desc")) value = value.slice(0, -5);
 
   const root = value.replace(/_asc$/, "");
   if (!PostSearch.SUPPORTED_ORDER_ASC_ROOTS.includes(root)) {
-    return PostSearch.ORDER_CUSTOM;
+    return {
+      value: PostSearch.ORDER_CUSTOM,
+      direction: PostSearch.ORDER_DESC,
+    };
   }
 
-  let order = value.endsWith("_asc") ? root + "_asc" : root;
+  let direction = value.endsWith("_asc") ? PostSearch.ORDER_ASC : PostSearch.ORDER_DESC;
 
   if (negated) {
-    order = order.endsWith("_asc") ? root : root + "_asc";
+    direction = direction === PostSearch.ORDER_ASC ? PostSearch.ORDER_DESC : PostSearch.ORDER_ASC;
   }
 
-  return order;
+  return {
+    value: root,
+    direction,
+  };
 };
 
 PostSearch.parse_inpool_token = function (text) {
@@ -196,11 +233,25 @@ PostSearch.unquote_metatag_value = function (value) {
   return value;
 };
 
-PostSearch.replace_order_metatags = function (query, value) {
-  if (value === PostSearch.ORDER_CUSTOM) return query;
+PostSearch.order_has_direction = function (value) {
+  return value === "id" || PostSearch.SUPPORTED_ORDER_ASC_ROOTS.includes(value);
+};
 
-  const newToken = value && PostSearch.SUPPORTED_ORDER_VALUES.includes(value)
-    ? "order:" + value
+PostSearch.order_metatag_value = function (value, direction) {
+  if (!value) return "";
+  if (value === PostSearch.ORDER_CUSTOM) return PostSearch.ORDER_CUSTOM;
+  if (PostSearch.SUPPORTED_ORDER_STANDALONE_VALUES.includes(value)) return value;
+  if (value === "id") return direction === PostSearch.ORDER_ASC ? "id" : "id_desc";
+  if (!PostSearch.SUPPORTED_ORDER_ASC_ROOTS.includes(value)) return PostSearch.ORDER_CUSTOM;
+  return direction === PostSearch.ORDER_ASC ? value + "_asc" : value;
+};
+
+PostSearch.replace_order_metatags = function (query, value, direction) {
+  const orderValue = PostSearch.order_metatag_value(value, direction);
+  if (orderValue === PostSearch.ORDER_CUSTOM) return query;
+
+  const newToken = orderValue && PostSearch.SUPPORTED_ORDER_VALUES.includes(orderValue)
+    ? "order:" + orderValue
     : "";
 
   return PostSearch.replace_top_level_metatags(query, (token) => !!PostSearch.parse_order_token(token), newToken);

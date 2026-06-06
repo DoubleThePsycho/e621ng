@@ -18,86 +18,73 @@
       <summary>Advanced search</summary>
 
       <div class="post-advanced-search-controls">
-        <label>
-          Sort
-          <%= content_tag(:select, class: "post-advanced-search-sort", data: { advanced_search: "sort" }) do %>
-            <%= tag.optgroup(label: "Basic") do %>
-              <%= tag.option("Default", value: "") %>
-              <%= tag.option("Random", value: "random") %>
-              <%= tag.option("Hot", value: "hot") %>
-              <%= tag.option("ID (newest first)", value: "id_desc") %>
-              <%= tag.option("ID (oldest first)", value: "id") %>
+        <div class="post-advanced-search-row post-advanced-search-sort-row">
+          <label class="post-advanced-search-sort-label">
+            Sort
+            <%= content_tag(:select, class: "post-advanced-search-sort", data: { advanced_search: "sort" }) do %>
+              <%= tag.optgroup(label: "Basic") do %>
+                <%= tag.option("Default", value: "") %>
+                <%= tag.option("Random", value: "random") %>
+                <%= tag.option("Hot", value: "hot") %>
+                <%= tag.option("ID", value: "id") %>
+              <% end %>
+              <%= tag.optgroup(label: "Dates") do %>
+                <%= tag.option("Created", value: "created") %>
+                <%= tag.option("Updated", value: "updated") %>
+                <%= tag.option("Change sequence", value: "change") %>
+              <% end %>
+              <%= tag.optgroup(label: "Community") do %>
+                <%= tag.option("Score", value: "score") %>
+                <%= tag.option("Favorites", value: "favcount") %>
+                <%= tag.option("Comments", value: "comment") %>
+                <%= tag.option("Comment count", value: "comment_count") %>
+                <%= tag.option("Bumped comments", value: "comment_bumped") %>
+              <% end %>
+              <%= tag.optgroup(label: "Media") do %>
+                <%= tag.option("Resolution", value: "mpixels") %>
+                <%= tag.option("File size", value: "filesize") %>
+                <%= tag.option("Landscape", value: "landscape") %>
+                <%= tag.option("Portrait", value: "portrait") %>
+                <%= tag.option("Duration", value: "duration") %>
+              <% end %>
+              <%= tag.optgroup(label: "Tag count") do %>
+                <%= tag.option("All tags", value: "tagcount") %>
+                <%= tag.option("General tags", value: "general_tags", style: "color: var(--color-tag-general)") %>
+                <%= tag.option("Artist tags", value: "artist_tags", style: "color: var(--color-tag-artist)") %>
+                <%= tag.option("Contributor tags", value: "contributor_tags", style: "color: var(--color-tag-contributor)") %>
+                <%= tag.option("Copyright tags", value: "copyright_tags", style: "color: var(--color-tag-copyright)") %>
+                <%= tag.option("Character tags", value: "character_tags", style: "color: var(--color-tag-character)") %>
+                <%= tag.option("Species tags", value: "species_tags", style: "color: var(--color-tag-species)") %>
+                <%= tag.option("Invalid tags", value: "invalid_tags", style: "color: var(--color-tag-invalid)") %>
+                <%= tag.option("Meta tags", value: "meta_tags", style: "color: var(--color-tag-meta)") %>
+                <%= tag.option("Lore tags", value: "lore_tags", style: "color: var(--color-tag-lore)") %>
+              <% end %>
+              <%= tag.optgroup(label: "Technical") do %>
+                <%= tag.option("MD5", value: "md5") %>
+                <%= tag.option("Notes", value: "note") %>
+              <% end %>
+              <%= tag.option("Custom", value: "__custom", hidden: true) %>
             <% end %>
-            <%= tag.optgroup(label: "Dates") do %>
-              <%= tag.option("Created (desc)", value: "created") %>
-              <%= tag.option("Created (asc)", value: "created_asc") %>
-              <%= tag.option("Updated (desc)", value: "updated") %>
-              <%= tag.option("Updated (asc)", value: "updated_asc") %>
-              <%= tag.option("Change sequence (desc)", value: "change") %>
-              <%= tag.option("Change sequence (asc)", value: "change_asc") %>
-            <% end %>
-            <%= tag.optgroup(label: "Community") do %>
-              <%= tag.option("Score (desc)", value: "score") %>
-              <%= tag.option("Score (asc)", value: "score_asc") %>
-              <%= tag.option("Favorites (desc)", value: "favcount") %>
-              <%= tag.option("Favorites (asc)", value: "favcount_asc") %>
-              <%= tag.option("Newest comments", value: "comment") %>
-              <%= tag.option("Oldest comments", value: "comment_asc") %>
-              <%= tag.option("Comment count (desc)", value: "comment_count") %>
-              <%= tag.option("Comment count (asc)", value: "comment_count_asc") %>
-              <%= tag.option("Bumped comments (desc)", value: "comment_bumped") %>
-              <%= tag.option("Bumped comments (asc)", value: "comment_bumped_asc") %>
-            <% end %>
-            <%= tag.optgroup(label: "Media") do %>
-              <%= tag.option("Resolution (desc)", value: "mpixels") %>
-              <%= tag.option("Resolution (asc)", value: "mpixels_asc") %>
-              <%= tag.option("File size (desc)", value: "filesize") %>
-              <%= tag.option("File size (asc)", value: "filesize_asc") %>
-              <%= tag.option("Landscape", value: "landscape") %>
-              <%= tag.option("Portrait", value: "portrait") %>
-              <%= tag.option("Duration (desc)", value: "duration") %>
-              <%= tag.option("Duration (asc)", value: "duration_asc") %>
-            <% end %>
-            <%= tag.optgroup(label: "Tags") do %>
-              <%= tag.option("Tag count (desc)", value: "tagcount") %>
-              <%= tag.option("Tag count (asc)", value: "tagcount_asc") %>
-              <%= tag.option("General tag count (desc)", value: "general_tags") %>
-              <%= tag.option("General tag count (asc)", value: "general_tags_asc") %>
-              <%= tag.option("Artist tag count (desc)", value: "artist_tags") %>
-              <%= tag.option("Artist tag count (asc)", value: "artist_tags_asc") %>
-              <%= tag.option("Contributor tag count (desc)", value: "contributor_tags") %>
-              <%= tag.option("Contributor tag count (asc)", value: "contributor_tags_asc") %>
-              <%= tag.option("Copyright tag count (desc)", value: "copyright_tags") %>
-              <%= tag.option("Copyright tag count (asc)", value: "copyright_tags_asc") %>
-              <%= tag.option("Character tag count (desc)", value: "character_tags") %>
-              <%= tag.option("Character tag count (asc)", value: "character_tags_asc") %>
-              <%= tag.option("Species tag count (desc)", value: "species_tags") %>
-              <%= tag.option("Species tag count (asc)", value: "species_tags_asc") %>
-              <%= tag.option("Invalid tag count (desc)", value: "invalid_tags") %>
-              <%= tag.option("Invalid tag count (asc)", value: "invalid_tags_asc") %>
-              <%= tag.option("Meta tag count (desc)", value: "meta_tags") %>
-              <%= tag.option("Meta tag count (asc)", value: "meta_tags_asc") %>
-              <%= tag.option("Lore tag count (desc)", value: "lore_tags") %>
-              <%= tag.option("Lore tag count (asc)", value: "lore_tags_asc") %>
-            <% end %>
-            <%= tag.optgroup(label: "Technical") do %>
-              <%= tag.option("MD5 (desc)", value: "md5") %>
-              <%= tag.option("MD5 (asc)", value: "md5_asc") %>
-              <%= tag.option("Notes (desc)", value: "note") %>
-              <%= tag.option("Notes (asc)", value: "note_asc") %>
-            <% end %>
-            <%= tag.option("Custom", value: "__custom", hidden: true) %>
-          <% end %>
-        </label>
+          </label>
 
-        <label>
-          In pool
-          <%= content_tag(:select, class: "post-advanced-search-inpool", data: { advanced_search: "inpool" }) do %>
-            <%= tag.option("Any", value: "") %>
-            <%= tag.option("Yes", value: "true") %>
-            <%= tag.option("No", value: "false") %>
+          <%= content_tag(:select, class: "post-advanced-search-direction-select", aria: { label: "Sort direction" }, data: { advanced_search: "direction" }) do %>
+              <%= tag.optgroup(label: "Direction") do %>
+                <%= tag.option("Desc", value: "desc") %>
+                <%= tag.option("Asc", value: "asc") %>
+              <% end %>
           <% end %>
-        </label>
+        </div>
+
+        <div class="post-advanced-search-row post-advanced-search-inpool-row">
+          <label>
+            In pool
+            <%= content_tag(:select, class: "post-advanced-search-inpool", data: { advanced_search: "inpool" }) do %>
+              <%= tag.option("Any", value: "") %>
+              <%= tag.option("Yes", value: "true") %>
+              <%= tag.option("No", value: "false") %>
+            <% end %>
+          </label>
+        </div>
       </div>
     </details>
   <% end %>
