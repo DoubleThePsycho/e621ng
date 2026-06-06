@@ -21,18 +21,52 @@
         <label>
           Sort
           <%= content_tag(:select, class: "post-advanced-search-sort", data: { advanced_search: "sort" }) do %>
-            <%= tag.option("Default", value: "") %>
-            <%= tag.option("Score descending", value: "score") %>
-            <%= tag.option("Score ascending", value: "score_asc") %>
-            <%= tag.option("Favorites descending", value: "favcount") %>
-            <%= tag.option("Favorites ascending", value: "favcount_asc") %>
-            <%= tag.option("Created descending", value: "created") %>
-            <%= tag.option("Created ascending", value: "created_asc") %>
-            <%= tag.option("Updated descending", value: "updated") %>
-            <%= tag.option("Updated ascending", value: "updated_asc") %>
-            <%= tag.option("Comments descending", value: "comment") %>
-            <%= tag.option("Comments ascending", value: "comment_asc") %>
-            <%= tag.option("Custom", value: "__custom", hidden: true) %>
+            <%= tag.optgroup(label: "Default") do %>
+              <%= tag.option("Default", value: "") %>
+            <% end %>
+            <%= tag.optgroup(label: "Score") do %>
+              <%= tag.option("Score (desc)", value: "score") %>
+              <%= tag.option("Score (asc)", value: "score_asc") %>
+            <% end %>
+            <%= tag.optgroup(label: "Favorites") do %>
+              <%= tag.option("Favorites (desc)", value: "favcount") %>
+              <%= tag.option("Favorites (asc)", value: "favcount_asc") %>
+            <% end %>
+            <%= tag.optgroup(label: "Dates") do %>
+              <%= tag.option("Created (desc)", value: "created") %>
+              <%= tag.option("Created (asc)", value: "created_asc") %>
+              <%= tag.option("Updated (desc)", value: "updated") %>
+              <%= tag.option("Updated (asc)", value: "updated_asc") %>
+            <% end %>
+            <%= tag.optgroup(label: "Activity") do %>
+              <%= tag.option("Comments (desc)", value: "comment") %>
+              <%= tag.option("Comments (asc)", value: "comment_asc") %>
+            <% end %>
+            <%= tag.optgroup(label: "Tags") do %>
+              <%= tag.option("Tag count (desc)", value: "tagcount") %>
+              <%= tag.option("Tag count (asc)", value: "tagcount_asc") %>
+              <%= tag.option("General tag count (desc)", value: "general_tags") %>
+              <%= tag.option("General tag count (asc)", value: "general_tags_asc") %>
+              <%= tag.option("Artist tag count (desc)", value: "artist_tags") %>
+              <%= tag.option("Artist tag count (asc)", value: "artist_tags_asc") %>
+              <%= tag.option("Contributor tag count (desc)", value: "contributor_tags") %>
+              <%= tag.option("Contributor tag count (asc)", value: "contributor_tags_asc") %>
+              <%= tag.option("Copyright tag count (desc)", value: "copyright_tags") %>
+              <%= tag.option("Copyright tag count (asc)", value: "copyright_tags_asc") %>
+              <%= tag.option("Character tag count (desc)", value: "character_tags") %>
+              <%= tag.option("Character tag count (asc)", value: "character_tags_asc") %>
+              <%= tag.option("Species tag count (desc)", value: "species_tags") %>
+              <%= tag.option("Species tag count (asc)", value: "species_tags_asc") %>
+              <%= tag.option("Invalid tag count (desc)", value: "invalid_tags") %>
+              <%= tag.option("Invalid tag count (asc)", value: "invalid_tags_asc") %>
+              <%= tag.option("Meta tag count (desc)", value: "meta_tags") %>
+              <%= tag.option("Meta tag count (asc)", value: "meta_tags_asc") %>
+              <%= tag.option("Lore tag count (desc)", value: "lore_tags") %>
+              <%= tag.option("Lore tag count (asc)", value: "lore_tags_asc") %>
+            <% end %>
+            <%= tag.optgroup(label: "Custom") do %>
+              <%= tag.option("Custom", value: "__custom", hidden: true) %>
+            <% end %>
           <% end %>
         </label>
 

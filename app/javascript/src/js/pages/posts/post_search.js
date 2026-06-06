@@ -4,7 +4,23 @@ import Offclick from "@/utility/Offclick";
 
 const PostSearch = {};
 
-PostSearch.SUPPORTED_ORDER_ROOTS = ["score", "favcount", "created", "updated", "comment"];
+PostSearch.SUPPORTED_ORDER_ROOTS = [
+  "score",
+  "favcount",
+  "created",
+  "updated",
+  "comment",
+  "tagcount",
+  "general_tags",
+  "artist_tags",
+  "contributor_tags",
+  "copyright_tags",
+  "character_tags",
+  "species_tags",
+  "invalid_tags",
+  "meta_tags",
+  "lore_tags",
+];
 PostSearch.SUPPORTED_ORDER_VALUES = PostSearch.SUPPORTED_ORDER_ROOTS.flatMap(root => [root, root + "_asc"]);
 PostSearch.ORDER_CUSTOM = "__custom";
 
@@ -58,6 +74,7 @@ PostSearch.initialize_advanced_search = function ($section) {
     syncControls();
   };
 
+  $textarea.on("input", syncControls);
   $sort.on("change", updateOrder);
   $inpool.on("change", updateInpool);
 

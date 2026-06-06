@@ -93,8 +93,8 @@
     }
 
     .post-advanced-search {
-      margin-top: 0.35rem;
-      font-size: 0.85rem;
+      margin-top: 0.3rem;
+      font-size: 0.8rem;
 
       summary {
         cursor: pointer;
@@ -110,18 +110,28 @@
     .post-advanced-search-controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem 0.75rem;
-      padding-top: 0.35rem;
+      align-items: center;
+      gap: 0.35rem 0.6rem;
+      padding-top: 0.3rem;
 
       label {
         display: flex;
+        flex: 0 1 auto;
         align-items: center;
-        gap: 0.35rem;
+        gap: 0.3rem;
+        min-width: 0;
         font-weight: normal;
+        white-space: nowrap;
       }
 
       select {
-        max-width: 10rem;
+        max-width: 7.5rem;
+        min-width: 0;
+        font-size: inherit;
+      }
+
+      .post-advanced-search-inpool {
+        max-width: 4.75rem;
       }
     }
   }
