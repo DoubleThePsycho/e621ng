@@ -81,7 +81,8 @@ PostSearch.initialize_advanced_search = function ($section) {
   if (!$textarea.length || !$sort.length || !$direction.length || !$inpool.length) return;
 
   const syncDirectionControl = function () {
-    const hasDirection = PostSearch.order_has_direction($sort.val());
+    const value = $sort.val() + "";
+    const hasDirection = value !== PostSearch.ORDER_CUSTOM && PostSearch.order_has_direction(value);
     $direction.prop("disabled", !hasDirection);
     $direction.toggleClass("post-advanced-search-direction-hidden", !hasDirection);
   };

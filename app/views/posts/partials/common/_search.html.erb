@@ -14,14 +14,15 @@
       <%= tag.button(svg_icon(:search), type: "submit", title: "Search") %>
     </div>
 
-    <details class="post-advanced-search">
-      <summary>Advanced search</summary>
+    <div class="post-advanced-search-header">
+      <details class="post-advanced-search">
+        <summary>Advanced options</summary>
 
       <div class="post-advanced-search-controls">
         <div class="post-advanced-search-row post-advanced-search-sort-row">
           <label class="post-advanced-search-sort-label">
             Sort
-            <%= content_tag(:select, class: "post-advanced-search-sort", data: { advanced_search: "sort" }) do %>
+            <%= content_tag(:select, class: "post-advanced-search-sort styled-dtext", data: { advanced_search: "sort" }) do %>
               <%= tag.optgroup(label: "Basic") do %>
                 <%= tag.option("Default", value: "") %>
                 <%= tag.option("Random", value: "random") %>
@@ -49,15 +50,15 @@
               <% end %>
               <%= tag.optgroup(label: "Tag count") do %>
                 <%= tag.option("All tags", value: "tagcount") %>
-                <%= tag.option("General tags", value: "general_tags", style: "color: var(--color-tag-general)") %>
-                <%= tag.option("Artist tags", value: "artist_tags", style: "color: var(--color-tag-artist)") %>
-                <%= tag.option("Contributor tags", value: "contributor_tags", style: "color: var(--color-tag-contributor)") %>
-                <%= tag.option("Copyright tags", value: "copyright_tags", style: "color: var(--color-tag-copyright)") %>
-                <%= tag.option("Character tags", value: "character_tags", style: "color: var(--color-tag-character)") %>
-                <%= tag.option("Species tags", value: "species_tags", style: "color: var(--color-tag-species)") %>
-                <%= tag.option("Invalid tags", value: "invalid_tags", style: "color: var(--color-tag-invalid)") %>
-                <%= tag.option("Meta tags", value: "meta_tags", style: "color: var(--color-tag-meta)") %>
-                <%= tag.option("Lore tags", value: "lore_tags", style: "color: var(--color-tag-lore)") %>
+                <%= tag.option("General tags", value: "general_tags", class: "dtext-color-general") %>
+                <%= tag.option("Artist tags", value: "artist_tags", class: "dtext-color-artist") %>
+                <%= tag.option("Contributor tags", value: "contributor_tags", class: "dtext-color-contributor") %>
+                <%= tag.option("Copyright tags", value: "copyright_tags", class: "dtext-color-copyright") %>
+                <%= tag.option("Character tags", value: "character_tags", class: "dtext-color-character") %>
+                <%= tag.option("Species tags", value: "species_tags", class: "dtext-color-species") %>
+                <%= tag.option("Invalid tags", value: "invalid_tags", class: "dtext-color-invalid") %>
+                <%= tag.option("Meta tags", value: "meta_tags", class: "dtext-color-meta") %>
+                <%= tag.option("Lore tags", value: "lore_tags", class: "dtext-color-lore") %>
               <% end %>
               <%= tag.optgroup(label: "Technical") do %>
                 <%= tag.option("MD5", value: "md5") %>
@@ -68,10 +69,10 @@
           </label>
 
           <%= content_tag(:select, class: "post-advanced-search-direction-select", aria: { label: "Sort direction" }, data: { advanced_search: "direction" }) do %>
-              <%= tag.optgroup(label: "Direction") do %>
-                <%= tag.option("Desc", value: "desc") %>
-                <%= tag.option("Asc", value: "asc") %>
-              <% end %>
+            <%= tag.optgroup(label: "Direction") do %>
+              <%= tag.option("Desc", value: "desc") %>
+              <%= tag.option("Asc", value: "asc") %>
+            <% end %>
           <% end %>
         </div>
 
@@ -79,13 +80,25 @@
           <label>
             In pool
             <%= content_tag(:select, class: "post-advanced-search-inpool", data: { advanced_search: "inpool" }) do %>
-              <%= tag.option("Any", value: "") %>
-              <%= tag.option("Yes", value: "true") %>
-              <%= tag.option("No", value: "false") %>
+              <%= tag.option("Unset", value: "") %>
+              <%= tag.optgroup(label: "Strict") do %>
+                <%= tag.option("Yes", value: "true") %>
+                <%= tag.option("No", value: "false") %>
+              <% end %>
             <% end %>
           </label>
         </div>
       </div>
-    </details>
+      </details>
+
+      <div class="search-controls">
+        <button id="search-fullscreen" class="st-button" type="button" title="Fullscreen mode">
+          <%= svg_icon(:fullscreen) %>
+        </button>
+        <button id="search-settings" class="st-button" type="button" title="Layout settings">
+          <%= svg_icon(:settings) %>
+        </button>
+      </div>
+    </div>
   <% end %>
 </section>

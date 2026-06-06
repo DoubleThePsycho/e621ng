@@ -10,8 +10,4 @@
   font-family: monospace;
 
   & > span { cursor: help; }
-
-  @include window-larger-than(50rem) {
-    justify-content: end;
-  }
 }
