@@ -1,5 +1,7 @@
 <% tab_name = "advanced" %>
 
+<div class="advanced-settings-left">
+
 <!-- Accessibility -->
 <tab-group name="accessibility">Accessibility</tab-group>
 
@@ -125,6 +127,9 @@
 </tab-entry>
 <% end %>
 
+</div>
+
+<div class="advanced-settings-right">
 
 <!-- Mobile -->
 <tab-group name="mobile">Mobile / Tablet</tab-group>
@@ -147,9 +152,13 @@
 <tab-entry tab="<%= tab_name %>" group="customization" class="bigtext" search="customize css styles">
   <tab-head>Custom CSS</tab-head>
   <tab-body>
-    <%= form.input_field :custom_style, label: false, rows: 8 %>
+    <%= form.input_field :custom_style, label: false, rows: 8,
+        spellcheck: "false", autocomplete: "off",
+        autocapitalize: "off", autocorrect: "off" %>
   </tab-body>
   <tab-hint>
     Apply <a href="https://en.wikipedia.org/wiki/CSS">CSS Styles</a> to the whole website.
   </tab-hint>
 </tab-entry>
+
+</div>

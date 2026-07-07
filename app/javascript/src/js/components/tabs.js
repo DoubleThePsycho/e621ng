@@ -78,7 +78,7 @@ class TabIndex {
 
     this.pages = {};
     this.search = {};
-    this._allEntries = wrapper.children("tab-entry");
+    this._allEntries = wrapper.find("tab-entry");
     for (const one of this._allEntries) {
       const $one = $(one);
 
@@ -95,7 +95,7 @@ class TabIndex {
     }
 
     this.groups = {};
-    this._allGroups = wrapper.children("tab-group");
+    this._allGroups = wrapper.find("tab-group");
     for (const one of this._allGroups) {
       const $one = $(one);
       const name = $one.attr("name");
