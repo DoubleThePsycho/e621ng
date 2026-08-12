@@ -33,10 +33,34 @@
   & > .content {
     border-radius: 0 0.25rem 0.25rem 0;
     padding: 0.5rem 0.75rem themed("content-padding-bottom");
-    max-width: 100%;
   }
 }
 
 .c-posts.a-index div#page div#news  {
   margin: 0;
+}
+
+// Once the viewport can fit the container and sidebar side by side, move the
+// sidebar into the left gutter so it no longer reduces the content width.
+@include window-larger-than(1832px) {
+  .post-index {
+    grid-template-columns: 0 minmax(0, 1fr);
+
+    & > .search,
+    & > .sidebar {
+      box-sizing: border-box;
+      width: 16rem;
+      background-color: themed("color-foreground");
+      transform: translateX(-100%);
+    }
+
+    & > .search {
+      z-index: 1;
+      border-radius: $border-radius-full 0 0 0;
+    }
+
+    & > .sidebar {
+      border-radius: 0 0 0 $border-radius-full;
+    }
+  }
 }
