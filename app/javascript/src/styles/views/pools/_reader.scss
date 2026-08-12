@@ -1,0 +1,260 @@
+#pool-reader {
+  max-width: 900px;
+  margin: 1.5rem auto;
+
+  &:fullscreen {
+    display: flex;
+    flex-direction: column;
+    max-width: none;
+    background: #000;
+
+    .pool-reader-main {
+      flex: 1;
+      min-height: 0;
+      height: auto;
+    }
+
+    .pool-reader-media-container {
+      height: 100%;
+    }
+  }
+}
+
+.pool-reader-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 0;
+}
+
+#pool-reader-counter {
+  font-size: 0.9rem;
+  opacity: 0.65;
+}
+
+.pool-reader-main {
+  position: relative;
+  background: #000;
+  height: min(600px, 70vh);
+  overflow: hidden;
+}
+
+.pool-reader-media-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+// ── Slides ─────────────────────────────────────────────────────────────────
+
+.pool-reader-slide {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .pool-reader-image,
+  .pool-reader-video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .pool-reader-blocked-msg {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 1rem;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .pool-reader-download-link {
+    color: themed("color-link");
+    font-size: 1rem;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  &.slide-exit-left,
+  &.slide-exit-right {
+    position: absolute;
+    inset: 0;
+  }
+
+  &.slide-enter-right { animation: pool-reader-in-right 0.28s ease; }
+  &.slide-enter-left  { animation: pool-reader-in-left  0.28s ease; }
+  &.slide-exit-left   { animation: pool-reader-out-left  0.28s ease forwards; }
+  &.slide-exit-right  { animation: pool-reader-out-right 0.28s ease forwards; }
+}
+
+@keyframes pool-reader-in-right  { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes pool-reader-in-left   { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes pool-reader-out-left  { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes pool-reader-out-right { from { transform: translateX(0); } to { transform: translateX(100%); } }
+
+// ── Nav circles ─────────────────────────────────────────────────────────────
+// Shown/hidden via JS (.is-visible) based on which half the cursor is over.
+
+.pool-reader-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+
+  &.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.85);
+    border-color: rgba(255, 255, 255, 0.55);
+  }
+
+  // :disabled takes priority; CSS specificity ensures this wins over .is-visible
+  &:disabled {
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+
+  &.pool-reader-prev { left: 12px; }
+  &.pool-reader-next { right: 12px; }
+
+  @media (max-width: 768px) { display: none; }
+}
+
+// ── Hover controls overlay ──────────────────────────────────────────────────
+
+.pool-reader-controls-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding: 2rem 0.75rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+
+  .pool-reader-main:hover & {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.pool-reader-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    text-decoration: none;
+    outline: none;
+  }
+
+  &.is-active {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+}
+
+// Fullscreen icon swap
+.pool-reader-fs-exit { display: none; }
+
+#pool-reader.is-fullscreen {
+  .pool-reader-fs-enter { display: none; }
+  .pool-reader-fs-exit  { display: block; }
+}
+
+// ── Filmstrip ───────────────────────────────────────────────────────────────
+
+.pool-reader-filmstrip {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  height: 90px;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 4px;
+  background: #111;
+
+  &.pool-reader-filmstrip--hidden { display: none; }
+}
+
+.pool-reader-thumb {
+  flex-shrink: 0;
+  width: 70px;
+  height: 100%;
+  border: 2px solid transparent;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  transition: border-color 0.1s;
+
+  &.active {
+    border-color: themed("color-link");
+  }
+
+  picture {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.pool-reader-thumb-placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  user-select: none;
+}
+
+@media (max-width: 768px) {
+  .pool-reader-filmstrip { height: 70px; }
+  .pool-reader-thumb { width: 55px; }
+}

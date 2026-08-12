@@ -21,6 +21,7 @@ class PoolsController < ApplicationController
     respond_with(@pool) do |format|
       format.html do
         @posts = @pool.posts.paginate_posts(params[:page], limit: params[:limit], total_count: @pool.post_ids.count)
+        @all_reader_posts = @pool.posts
       end
     end
   end
