@@ -79,6 +79,9 @@ Rails.application.configure do # rubocop:disable Metrics/BlockLength
   config.action_controller.allow_forgery_protection = ENV.fetch("DISABLE_CSRF_PROTECTION", "true") == "true"
   config.assume_ssl = ENV.fetch("RAILS_ASSUME_SSL", "false") == "true"
 
+  # Treat all requests as HTTPS, for dev setups behind an SSL-terminating reverse proxy.
+  config.assume_ssl = ENV.fetch("RAILS_ASSUME_SSL", "false") == "true"
+
   config.hosts << "e621ng.local"
 
   # Allow access from GitHub Codespaces, if applicable
