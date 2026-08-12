@@ -22,6 +22,7 @@ export default class LStorage {
     Gestures: false,
     StickyHeader: false,
     Logo: "pride", // Too many to list
+    Container: "default" as "default" | "compact" | "moderate",
   };
 
   // Values relevant to the posts pages
@@ -100,6 +101,7 @@ const StorageKeys: StorageConfig = {
     Gestures: "emg",
     StickyHeader: "theme-sheader",
     Logo: "theme-logo",
+    Container: "theme-container",
   },
 
   "Posts": {

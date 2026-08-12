@@ -119,3 +119,137 @@ div.clearfix {
   float: right;
   font-size: 70%;
 }
+
+// Compact + Moderate: replicate the abandoned branch's .container class, gated on
+// the data-th-container selector instead of an HTML class on div#page.
+// Wrapped in window-larger-than(50rem) so mobile layouts are unaffected.
+// SCSS combines nested @media queries, so the 576px/768px inner breakpoints
+// effectively become 50rem (the outer condition dominates).
+@include window-larger-than(50rem) {
+  body[data-th-container="compact"] div#page,
+  body[data-th-container="moderate"] div#page {
+    --container-gutter-x: 1.5rem;
+    box-sizing: border-box;
+    width: 100%;
+    padding-right: calc(var(--container-gutter-x) * 0.5);
+    padding-left: calc(var(--container-gutter-x) * 0.5);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  @media (min-width: 576px) {
+    body[data-th-container="compact"] div#page,
+    body[data-th-container="moderate"] div#page { max-width: 540px; }
+  }
+  @media (min-width: 768px) {
+    body[data-th-container="compact"] div#page,
+    body[data-th-container="moderate"] div#page { max-width: 720px; }
+  }
+  @media (min-width: 992px) {
+    body[data-th-container="compact"] div#page,
+    body[data-th-container="moderate"] div#page { max-width: 960px; }
+  }
+  @media (min-width: 1200px) {
+    body[data-th-container="compact"] div#page,
+    body[data-th-container="moderate"] div#page { max-width: 1140px; }
+  }
+  @media (min-width: 1400px) {
+    body[data-th-container="compact"] div#page,
+    body[data-th-container="moderate"] div#page { max-width: 1320px; }
+  }
+
+  // Compact: give the posts grid sidebar an explicit background (it has none by default).
+  // .search-controls drops below .search into .sidebar's area; z-index: 1 keeps
+  // them painted above the sidebar background.
+  body[data-th-container="compact"].c-posts.a-index,
+  body[data-th-container="compact"].c-posts.a-recommended,
+  body[data-th-container="compact"].c-favorites.a-index {
+    .post-index > .search { z-index: 1; }
+    .post-index > .sidebar { background-color: themed("color-foreground"); }
+  }
+
+  body[data-th-container="compact"].c-posts.a-show,
+  body[data-th-container="compact"].c-posts.a-show-seq {
+    .post-display > .search { z-index: 1; }
+    .post-display > .sidebar { background-color: themed("color-foreground"); }
+  }
+}
+
+// Moderate: at 1832px (same threshold as the abandoned branch) move the sidebar
+// into the left gutter. Posts pages use the abandoned branch's grid-collapse +
+// translateX approach. General pages use absolute positioning.
+@include window-larger-than(1832px) {
+  // General pages (float-based sidebar)
+  body[data-th-container="moderate"] {
+    div#page {
+      position: relative;
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+
+    div#page > div > div > aside#sidebar {
+      float: none;
+      position: absolute;
+      right: 100%;
+      top: 0;
+      width: 15em;
+      background-color: themed("color-foreground");
+      border-radius: $border-radius-full 0 0 $border-radius-full;
+    }
+
+    div#page > div > div > section#content {
+      margin-left: 0;
+    }
+  }
+
+  // Posts index pages — replicated directly from the abandoned branch
+  body[data-th-container="moderate"].c-posts.a-index,
+  body[data-th-container="moderate"].c-posts.a-recommended,
+  body[data-th-container="moderate"].c-favorites.a-index {
+    .post-index {
+      grid-template-columns: 0 minmax(0, 1fr);
+
+      & > .search,
+      & > .sidebar {
+        box-sizing: border-box;
+        width: 16rem;
+        background-color: themed("color-foreground");
+        transform: translateX(-100%);
+      }
+
+      & > .search {
+        z-index: 1;
+        border-radius: $border-radius-full 0 0 0;
+      }
+
+      & > .sidebar {
+        border-radius: 0 0 0 $border-radius-full;
+      }
+    }
+  }
+
+  // Post show pages — same as above
+  body[data-th-container="moderate"].c-posts.a-show,
+  body[data-th-container="moderate"].c-posts.a-show-seq {
+    .post-display {
+      grid-template-columns: 0 minmax(0, 1fr);
+
+      & > .search,
+      & > .sidebar {
+        box-sizing: border-box;
+        width: 16rem;
+        background-color: themed("color-foreground");
+        transform: translateX(-100%);
+      }
+
+      & > .search {
+        z-index: 1;
+        border-radius: $border-radius-full 0 0 0;
+      }
+
+      & > .sidebar {
+        border-radius: 0 0 0 $border-radius-full;
+      }
+    }
+  }
+}
