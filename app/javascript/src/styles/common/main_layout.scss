@@ -127,35 +127,78 @@ div.clearfix {
 // effectively become 50rem (the outer condition dominates).
 @include window-larger-than(50rem) {
   body[data-th-container="compact"] div#page,
-  body[data-th-container="moderate"] div#page {
+  body[data-th-container="moderate"] div#page,
+  body[data-th-container="compact"] nav.navigation,
+  body[data-th-container="moderate"] nav.navigation,
+  body[data-th-container="compact"] footer.footer-wrapper,
+  body[data-th-container="moderate"] footer.footer-wrapper {
     --container-gutter-x: 1.5rem;
     box-sizing: border-box;
     width: 100%;
-    padding-right: calc(var(--container-gutter-x) * 0.5);
-    padding-left: calc(var(--container-gutter-x) * 0.5);
     margin-right: auto;
     margin-left: auto;
   }
 
+  // Page and footer get the container gutter; nav gets its side padding zeroed
+  // (overrides the default 1rem from navigation.scss).
+  body[data-th-container="compact"] div#page,
+  body[data-th-container="moderate"] div#page,
+  body[data-th-container="compact"] footer.footer-wrapper,
+  body[data-th-container="moderate"] footer.footer-wrapper {
+    padding-right: calc(var(--container-gutter-x) * 0.5);
+    padding-left: calc(var(--container-gutter-x) * 0.5);
+  }
+
+  body[data-th-container="compact"] nav.navigation,
+  body[data-th-container="moderate"] nav.navigation {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  body[data-th-container="compact"] footer.footer-wrapper,
+  body[data-th-container="moderate"] footer.footer-wrapper {
+    border-radius: $border-radius-full $border-radius-full 0 0;
+  }
+
   @media (min-width: 576px) {
     body[data-th-container="compact"] div#page,
-    body[data-th-container="moderate"] div#page { max-width: 540px; }
+    body[data-th-container="moderate"] div#page,
+    body[data-th-container="compact"] nav.navigation,
+    body[data-th-container="moderate"] nav.navigation,
+    body[data-th-container="compact"] footer.footer-wrapper,
+    body[data-th-container="moderate"] footer.footer-wrapper { max-width: 540px; }
   }
   @media (min-width: 768px) {
     body[data-th-container="compact"] div#page,
-    body[data-th-container="moderate"] div#page { max-width: 720px; }
+    body[data-th-container="moderate"] div#page,
+    body[data-th-container="compact"] nav.navigation,
+    body[data-th-container="moderate"] nav.navigation,
+    body[data-th-container="compact"] footer.footer-wrapper,
+    body[data-th-container="moderate"] footer.footer-wrapper { max-width: 720px; }
   }
   @media (min-width: 992px) {
     body[data-th-container="compact"] div#page,
-    body[data-th-container="moderate"] div#page { max-width: 960px; }
+    body[data-th-container="moderate"] div#page,
+    body[data-th-container="compact"] nav.navigation,
+    body[data-th-container="moderate"] nav.navigation,
+    body[data-th-container="compact"] footer.footer-wrapper,
+    body[data-th-container="moderate"] footer.footer-wrapper { max-width: 960px; }
   }
   @media (min-width: 1200px) {
     body[data-th-container="compact"] div#page,
-    body[data-th-container="moderate"] div#page { max-width: 1140px; }
+    body[data-th-container="moderate"] div#page,
+    body[data-th-container="compact"] nav.navigation,
+    body[data-th-container="moderate"] nav.navigation,
+    body[data-th-container="compact"] footer.footer-wrapper,
+    body[data-th-container="moderate"] footer.footer-wrapper { max-width: 1140px; }
   }
   @media (min-width: 1400px) {
     body[data-th-container="compact"] div#page,
-    body[data-th-container="moderate"] div#page { max-width: 1320px; }
+    body[data-th-container="moderate"] div#page,
+    body[data-th-container="compact"] nav.navigation,
+    body[data-th-container="moderate"] nav.navigation,
+    body[data-th-container="compact"] footer.footer-wrapper,
+    body[data-th-container="moderate"] footer.footer-wrapper { max-width: 1320px; }
   }
 
   // Compact: give the posts grid sidebar an explicit background (it has none by default).
@@ -165,13 +208,19 @@ div.clearfix {
   body[data-th-container="compact"].c-posts.a-recommended,
   body[data-th-container="compact"].c-favorites.a-index {
     .post-index > .search { z-index: 1; }
-    .post-index > .sidebar { background-color: themed("color-foreground"); }
+    .post-index > .sidebar {
+      background-color: themed("color-foreground");
+      border-radius: 0 0 0 $border-radius-full;
+    }
   }
 
   body[data-th-container="compact"].c-posts.a-show,
   body[data-th-container="compact"].c-posts.a-show-seq {
     .post-display > .search { z-index: 1; }
-    .post-display > .sidebar { background-color: themed("color-foreground"); }
+    .post-display > .sidebar {
+      background-color: themed("color-foreground");
+      border-radius: 0 0 0 $border-radius-full;
+    }
   }
 }
 
