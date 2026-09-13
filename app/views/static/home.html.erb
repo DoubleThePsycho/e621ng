@@ -1,4 +1,4 @@
-<div id="c-static"><div id="a-home">
+<div id="c-static" class="page-full-bleed"><div id="a-home">
   <script type="text/plain" id="home-mascots" data-encoding="base64" data-current="<%= @mascot_id %>"><%= Mascot.active_for_browser_base64 %></script>
   <section class="mascot-section"></section>
 
@@ -62,7 +62,7 @@
   </section>
   <section class="home-footer-bottom">
     <div class="home-footer-counter">
-      <% Post.fast_count.to_s.each_char do |x| -%><%= image_tag("counter/#{x}.svg", alt: x, width: 29, height: 64) %><% end -%>
+      <% Post.fast_count.to_s.each_char do |x| -%><%= image_tag("counter/#{x}.svg", alt: x, width: 29, height: 64) %><% end %>
     </div>
     <div class="home-footer-links">
       <%= link_to "Takedowns", takedown_static_path %>
