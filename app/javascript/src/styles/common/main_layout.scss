@@ -21,6 +21,7 @@ div#page {
   // Keep the page shell flush so full-width elements such as the news notice
   // do not need negative margins. Normal controller content owns the gutter.
   > div[id^="c-"] {
+    box-sizing: border-box;
     padding: $padding-050 $padding-025 themed("content-padding-bottom");
 
     @include window-larger-than(800px) {
