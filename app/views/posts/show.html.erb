@@ -1,4 +1,4 @@
-<div id="c-posts"><div id="a-show">
+<div id="c-posts" class="page-full-bleed"><div id="a-show">
   <%# Cookie value set in MobileTabs.ts %>
   <% selected_tab = !CurrentUser.hide_comments? && cookies[:post_tab] == "comments" ? "comments" : "tags" %>
   <div class="post-display" id="post-show-display" data-tab-state="<%= selected_tab %>">
