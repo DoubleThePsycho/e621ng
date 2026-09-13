@@ -41,6 +41,7 @@ export default class OtpCodeInput {
     const labelElement = root.querySelector<HTMLLabelElement>(".otp-code-input-label");
     const field = root.querySelector<HTMLElement>(".otp-code-input-field");
     const totpInput = root.querySelector<HTMLInputElement>(".otp-code-input-real");
+    const cellsContainer = root.querySelector<HTMLElement>(".otp-code-input-cells");
     const cells = Array.from(root.querySelectorAll<HTMLElement>(".otp-code-input-cell"));
     const toggle = root.querySelector<HTMLButtonElement>(".otp-code-input-toggle");
     const { labelTotp, labelBackup, toggleToBackup, toggleToTotp } = root.dataset;
@@ -51,6 +52,7 @@ export default class OtpCodeInput {
       || !labelElement
       || !field
       || !totpInput
+      || !cellsContainer
       || !toggle
       || cells.length !== TOTP_LENGTH
       || !labelTotp
@@ -100,8 +102,12 @@ export default class OtpCodeInput {
     this.totpInput.addEventListener("blur", () => this.render());
     this.totpInput.addEventListener("keyup", () => this.render());
     this.totpInput.addEventListener("select", () => this.render());
-    this.totpInput.addEventListener("click", (event) => this.handleClick(event));
     this.toggle.addEventListener("click", () => this.switchMode(this.mode === "totp" ? "backup" : "totp"));
+
+    cellsContainer.addEventListener("click", (event) => {
+      this.totpInput.focus();
+      this.handleClick(event);
+    });
 
     this.cells.forEach((cell) => {
       cell.addEventListener("animationend", (event) => {
