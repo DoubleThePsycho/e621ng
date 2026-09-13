@@ -80,6 +80,12 @@ Rails.application.configure do # rubocop:disable Metrics/BlockLength
 
   config.hosts << "e621ng.local"
 
+  # Keep machine-specific/custom development hosts in environment configuration
+  # instead of editing this tracked file and accidentally including them in commits.
+  if ENV["RAILS_HOST"].present?
+    config.hosts << ENV["RAILS_HOST"]
+  end
+
   # Allow access from GitHub Codespaces, if applicable
   if ENV["CODESPACES"].present? && ENV.fetch("CODESPACES", "false") == "true"
     codespace_name = ENV.key?("CODESPACE_NAME") ? Regexp.escape(ENV["CODESPACE_NAME"]) : ".*"
