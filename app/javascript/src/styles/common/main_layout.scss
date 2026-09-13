@@ -11,13 +11,22 @@ body {
 div#page {
   flex: 1;
   overflow: visible;
-  padding: $padding-050 $padding-025 themed("content-padding-bottom");
+  padding: 0;
 
   @include window-larger-than(800px) {
     border-radius: $border-radius-full;
     margin: 0.5rem 1rem 0;
-    padding-left: $padding-050;
-    padding-right: $padding-050;
+  }
+
+  // Keep the page shell flush so full-width elements such as the news notice
+  // do not need negative margins. Normal controller content owns the gutter.
+  > div[id^="c-"] {
+    padding: $padding-050 $padding-025 themed("content-padding-bottom");
+
+    @include window-larger-than(800px) {
+      padding-left: $padding-050;
+      padding-right: $padding-050;
+    }
   }
 
   background-color: $hexagon-color-foreground;
@@ -104,6 +113,19 @@ div#page {
     overflow: visible;
     margin-left: 15em;
     padding-left: 1em;
+  }
+}
+
+// These layouts own their spacing and are intentionally flush with #page.
+body.c-posts.a-index,
+body.c-posts.a-recommended,
+body.c-favorites.a-index,
+body.c-posts.a-show,
+body.c-posts.a-show-seq,
+body.c-staff-wikis.a-show,
+body.c-static.a-home {
+  #page > div[id^="c-"] {
+    padding: 0;
   }
 }
 
