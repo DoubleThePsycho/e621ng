@@ -28,6 +28,10 @@ div#page {
       padding-left: $padding-050;
       padding-right: $padding-050;
     }
+
+    &.page-full-bleed {
+      padding: 0;
+    }
   }
 
   background-color: $hexagon-color-foreground;
@@ -114,19 +118,6 @@ div#page {
     overflow: visible;
     margin-left: 15em;
     padding-left: 1em;
-  }
-}
-
-// These layouts own their spacing and are intentionally flush with #page.
-body.c-posts.a-index,
-body.c-posts.a-recommended,
-body.c-favorites.a-index,
-body.c-posts.a-show,
-body.c-posts.a-show-seq,
-body.c-staff-wikis.a-show,
-body.c-static.a-home {
-  #page > div[id^="c-"] {
-    padding: 0;
   }
 }
 
