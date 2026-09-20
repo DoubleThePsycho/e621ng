@@ -26,14 +26,14 @@ module PostSets
       @folder_scoped
     end
 
-    # Folder membership is opt-in, sidecar metadata - it must never change what "All
-    # Favorites" shows. This is the exact same flat query used before the folders feature
-    # existed, reused as-is both when not folder-scoped at all, and when folder-scoped but
-    # sitting at the root of the folder tree (@folder.nil?): root is "All Favorites," not
-    # "unfiled favorites," so browsing the folder tree at root shows every favorite, with
-    # any root-level folder cards rendered above the (unfiltered) list.
+    # legacy_flat_posts (no folder awareness whatsoever) backs both "not folder-scoped at
+    # all" (JSON, non-owner) and, deliberately, stays completely untouched by anything
+    # below - only the owner-HTML branch varies by position in the folder tree:
+    # root_unfiled_posts at the root (favorites not currently filed into any folder, true
+    # folder semantics) and folder_membership_posts inside an actual folder.
     def posts
       return folder_membership_posts if folder_scoped? && @folder.present?
+      return root_unfiled_posts if folder_scoped?
       legacy_flat_posts
     end
 
@@ -108,6 +108,37 @@ module PostSets
                          .order(created_at: :desc)
                          .paginate_posts(page, total_count: @post_count, limit: @limit)
         new_opts = { pagination_mode: :numbered, records_per_page: favs.records_per_page, total_count: @post_count, current_page: current_page }
+        ::Danbooru::Paginator::PaginatedArray.new(favs.map(&:post), new_opts)
+      end
+    end
+
+    # The owner-HTML root view: true folder semantics, so this shows only favorites not
+    # currently filed into any folder - never a raw favorite_folder_id column/index on
+    # favorites (there is none), just an anti-membership check against the sidecar table,
+    # keyed by favorite_id and served entirely by that table's own existing unique index
+    # (index_favorite_folder_memberships_on_favorite_id) - no new column or index on
+    # favorites, and no new index on favorite_folder_memberships either. Benchmarked (see
+    # commit message / PR notes) against a synthetic 2.05M-row favorites table with a
+    # 50,000-favorite user at several filed percentages: this NOT EXISTS shape gets a
+    # Nested Loop Anti Join reusing the existing index_favorites_on_user_id_and_created_at
+    # for its outer scan, sub-millisecond for any numbered page reachable through normal
+    # browsing. The one real cost is the count/deep-offset case, where the planner
+    # switches to a Hash Anti Join that scans favorite_folder_memberships in full (~30-40ms
+    # at ~200K membership rows in that benchmark) to build its hash table - that side is
+    # bounded by the sidecar table's own size, not favorites'. The query as a whole is
+    # still bounded by this user's own favorite count (it only ever scans this user's rows
+    # via index_favorites_on_user_id_and_created_at, never the whole 1.4B-row table), and
+    # is paid only once per owner-HTML root page load (never for JSON, non-owner, or
+    # folder pages).
+    def root_unfiled_posts
+      @posts ||= begin # rubocop:disable Naming/MemoizedInstanceVariableName -- shared memo backing the public `posts` method for both code paths
+        scope = ::Favorite.for_user(@user.id)
+                          .where("NOT EXISTS (SELECT 1 FROM favorite_folder_memberships WHERE favorite_folder_memberships.favorite_id = favorites.id)")
+        count = @post_count ||= scope.count
+        favs = scope.includes(post: :uploader)
+                    .order(created_at: :desc)
+                    .paginate_posts(page, total_count: count, limit: @limit)
+        new_opts = { pagination_mode: :numbered, records_per_page: favs.records_per_page, total_count: count, current_page: current_page }
         ::Danbooru::Paginator::PaginatedArray.new(favs.map(&:post), new_opts)
       end
     end

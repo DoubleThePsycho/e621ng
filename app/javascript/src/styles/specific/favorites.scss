@@ -156,14 +156,23 @@ div#c-favorites {
     outline: 2px solid themed("color-link");
   }
 
-  // Dim the dragged source thumbnail in place while its ghost follows the pointer,
-  // mirroring _sortable.scss's .dragging { display: none } pattern.
+  // Dim the dragged source thumbnail in place while its ghost follows the pointer.
+  // Deliberately NOT display: none (unlike _sortable.scss's .dragging, which reorders
+  // within a single list): removing the source from layout here would reflow every later
+  // thumbnail into its grid slot before the drop result is known, then jump them all back
+  // if the drag is cancelled or fails. The card stays in its slot for the whole gesture;
+  // FavoriteFolderDrag.ts only actually removes it from the DOM after a confirmed,
+  // successful move (and only when that removal is correct - see commitMove).
   article.thumbnail.favorite-dragging {
-    display: none;
+    opacity: 0.4;
   }
+}
 
-  .favorite-drag-ghost {
-    opacity: 0.85;
-    cursor: grabbing;
-  }
+// Not nested under div#c-favorites: FavoriteFolderDrag.ts appends the ghost directly to
+// document.body (so it can track the pointer via position: fixed unconstrained by any
+// container's overflow/stacking), which puts it outside #c-favorites in the DOM. A
+// selector scoped to #c-favorites would simply never match it.
+.favorite-drag-ghost {
+  opacity: 0.85;
+  cursor: grabbing;
 }

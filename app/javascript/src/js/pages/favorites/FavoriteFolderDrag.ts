@@ -3,6 +3,12 @@ import Favorite from "@/models/Favorite";
 /** Pixels of pointer movement required before a click becomes a drag. */
 const ACTIVATION_THRESHOLD = 6;
 
+/** Ghost size relative to the real thumbnail - kept within the requested 60-75% range. */
+const GHOST_SCALE = 0.7;
+
+/** Fixed pixel offset from the pointer, so the ghost never sits exactly under the cursor tip. */
+const GHOST_OFFSET = 12;
+
 interface DragState {
   pointerId: number;
   sourceEl: HTMLElement;
@@ -10,9 +16,6 @@ interface DragState {
   postId: string;
   startX: number;
   startY: number;
-  offsetX: number;
-  offsetY: number;
-  originNextSibling: ChildNode | null;
   active: boolean; // true once the movement threshold has been crossed
   currentTarget: HTMLElement | null;
   rafId: number;
@@ -47,7 +50,26 @@ export default class FavoriteFolderDrag {
     this.container.addEventListener("pointerdown", this.onPointerDown);
     // Capture phase: must run before the thumbnail link's own click/navigation handling.
     this.container.addEventListener("click", this.onClickCapture, true);
+    // Real post thumbnails (article.thumbnail[data-id] only - folder/Go-Up cards also
+    // render as article.thumbnail for visual parity, but deliberately never carry
+    // data-id, so the [data-id] qualifier is what actually excludes them here) must never
+    // start the browser's own native HTML5 drag: once that takes over, it owns the
+    // pointer's event stream and our Pointer Events-based threshold/activation logic
+    // below stops receiving pointermove for the rest of the gesture - the practical
+    // symptom being "dragging only works from the tiny footer," since the image (the
+    // most naturally draggable element in the card) is exactly where native drag wins.
+    // Unconditional (not gated on an active `this.drag`): native drag starts on the very
+    // first qualifying pointer move, before our own threshold logic would ever get a
+    // chance to run.
+    this.container.addEventListener("dragstart", this.onNativeDragStart);
   }
+
+  onNativeDragStart = (event: DragEvent): void => {
+    const target = event.target as Element;
+    if (target.closest("article.thumbnail[data-id]")) {
+      event.preventDefault();
+    }
+  };
 
   onPointerDown = (event: PointerEvent): void => {
     if (event.button !== 0) return;
@@ -63,7 +85,6 @@ export default class FavoriteFolderDrag {
     const postId = sourceEl.dataset.id;
     if (!postId) return;
 
-    const rect = sourceEl.getBoundingClientRect();
     this.drag = {
       pointerId: event.pointerId,
       sourceEl,
@@ -71,9 +92,6 @@ export default class FavoriteFolderDrag {
       postId,
       startX: event.clientX,
       startY: event.clientY,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-      originNextSibling: sourceEl.nextSibling,
       active: false,
       currentTarget: null,
       rafId: 0,
@@ -135,6 +153,11 @@ export default class FavoriteFolderDrag {
     drag.active = true;
     event.preventDefault(); // suppresses text-selection/native drag now that a real drag has started
     drag.captureEl.setPointerCapture(drag.pointerId);
+    // Dims the source in place - it must never leave its grid slot or be removed from the
+    // DOM here (see the favorite-dragging rule in favorites.scss): doing so would reflow
+    // every later thumbnail into its spot before the drop result is even known, and jump
+    // them all back again on a cancelled/failed drag. The card only ever actually leaves
+    // once commitMove's move request has succeeded.
     drag.sourceEl.classList.add("favorite-dragging");
     drag.ghost = this.createGhost(drag, event.clientX, event.clientY);
 
@@ -150,13 +173,15 @@ export default class FavoriteFolderDrag {
   createGhost (drag: DragState, clientX: number, clientY: number): HTMLElement {
     const rect = drag.sourceEl.getBoundingClientRect();
     const ghost = drag.sourceEl.cloneNode(true) as HTMLElement;
+    ghost.classList.remove("favorite-dragging");
     ghost.classList.add("favorite-drag-ghost");
+    this.sanitizeGhost(ghost);
     Object.assign(ghost.style, {
       position: "fixed",
-      left: `${clientX - drag.offsetX}px`,
-      top: `${clientY - drag.offsetY}px`,
-      width: `${rect.width}px`,
-      height: `${rect.height}px`,
+      left: `${clientX + GHOST_OFFSET}px`,
+      top: `${clientY + GHOST_OFFSET}px`,
+      width: `${rect.width * GHOST_SCALE}px`,
+      height: `${rect.height * GHOST_SCALE}px`,
       margin: "0",
       pointerEvents: "none",
       zIndex: "9999",
@@ -165,13 +190,30 @@ export default class FavoriteFolderDrag {
     return ghost;
   }
 
+  // Strips every id and data-* attribute (data-id, data-flags, data-tags, ...) from the
+  // clone and all of its descendants, so the ghost - while it briefly sits in document.body
+  // during the gesture - can never match article.thumbnail[data-id] (this module's own
+  // drag-source selector, and post_mode_menu.js's bulk-select selectors) or collide with
+  // a real element id, and so can never be mistaken for a real, interactive post
+  // thumbnail or drop source. pointer-events: none (set by the caller) already keeps it
+  // from receiving input directly; this guards against selector-based lookups instead.
+  sanitizeGhost (ghost: HTMLElement): void {
+    const nodes = [ghost, ...Array.from(ghost.querySelectorAll<HTMLElement>("*"))];
+    for (const node of nodes) {
+      node.removeAttribute("id");
+      for (const attr of Array.from(node.attributes)) {
+        if (attr.name.startsWith("data-")) node.removeAttribute(attr.name);
+      }
+    }
+  }
+
   onPointerMove = (event: PointerEvent): void => {
     const drag = this.drag;
     if (!drag || event.pointerId !== drag.pointerId) return;
 
     if (drag.ghost) {
-      drag.ghost.style.left = `${event.clientX - drag.offsetX}px`;
-      drag.ghost.style.top = `${event.clientY - drag.offsetY}px`;
+      drag.ghost.style.left = `${event.clientX + GHOST_OFFSET}px`;
+      drag.ghost.style.top = `${event.clientY + GHOST_OFFSET}px`;
     }
 
     drag.pendingMove = { clientX: event.clientX, clientY: event.clientY };
@@ -222,6 +264,9 @@ export default class FavoriteFolderDrag {
 
     if (drag.currentTarget) drag.currentTarget.classList.remove("drag-hover");
     if (drag.ghost) drag.ghost.remove();
+    // Un-dims the source. It was never removed or repositioned, so there is nothing else
+    // to restore here regardless of how the gesture ended - see commitMove, which removes
+    // it separately, afterward, only once a move actually succeeds.
     drag.sourceEl.classList.remove("favorite-dragging");
 
     // A completed drag still generates a synthetic click on release, valid drop or not -
@@ -240,17 +285,22 @@ export default class FavoriteFolderDrag {
       ? dropTarget.dataset.destinationFolderId || null
       : dropTarget.dataset.folderId || null;
 
-    const originalParent = drag.sourceEl.parentNode;
-    const originalNextSibling = drag.originNextSibling;
-
-    // Optimistic removal: the post no longer belongs in the currently-open folder view.
-    drag.sourceEl.remove();
-
+    // No optimistic removal, and so no rollback path either: the source card was never
+    // touched above, so a failed or rejected request simply leaves it exactly where it
+    // already is - there is nothing to reinsert.
     Favorite.move(Number(drag.postId), destinationFolderId ? Number(destinationFolderId) : null)
+      .then(() => {
+        // Every successful drop, from any drop target this component recognizes,
+        // necessarily moves the favorite out of whatever's currently displayed: at root
+        // (now "unfiled favorites") it gains a membership row; inside a folder it either
+        // moves to a different folder or loses its membership row entirely (Go Up to
+        // root). Either way, the post displayed at this position is no longer a member of
+        // the collection being viewed, so the source always comes out once the move is
+        // confirmed - never before.
+        drag.sourceEl.remove();
+      })
       .catch(() => {
-        // Roll back: reinsert the thumbnail exactly where it was. Favorite.move already
-        // dispatched the danbooru:error toast for this failure.
-        if (originalParent) originalParent.insertBefore(drag.sourceEl, originalNextSibling);
+        // Favorite.move already dispatched the danbooru:error toast for this failure.
       });
   }
 

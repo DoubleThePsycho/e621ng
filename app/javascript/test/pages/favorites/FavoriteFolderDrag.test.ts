@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import Favorite from "@/models/Favorite";
 
 vi.mock("@/models/Favorite", () => ({ default: { move: vi.fn(() => Promise.resolve({})) } }));
 
@@ -15,22 +16,39 @@ beforeAll(() => {
   }
 });
 
-function buildFixture () {
+function buildContainer () {
   const container = document.createElement("section");
   container.className = "posts-container";
+  document.body.appendChild(container);
+  return container;
+}
 
+function buildSource (id = "123") {
   const source = document.createElement("article");
   source.className = "thumbnail";
-  source.dataset.id = "123";
+  source.dataset.id = id;
 
   const link = document.createElement("a");
   link.className = "thm-link";
-  link.setAttribute("href", "/posts/123");
-  source.appendChild(link);
+  link.setAttribute("href", `/posts/${id}`);
 
-  container.appendChild(source);
-  document.body.appendChild(container);
-  return { container, source, link };
+  const img = document.createElement("img");
+  link.appendChild(img);
+
+  const desc = document.createElement("div");
+  desc.className = "thm-desc";
+
+  source.appendChild(link);
+  source.appendChild(desc);
+  return { source, link, img, desc };
+}
+
+function buildDropTarget (folderId = "9") {
+  const target = document.createElement("article");
+  target.className = "favorite-folder-card";
+  target.dataset.dropTarget = "folder";
+  target.dataset.folderId = folderId;
+  return target;
 }
 
 function firePointer (type: string, el: Element | Document, opts: Partial<PointerEventInit> = {}) {
@@ -47,14 +65,24 @@ function firePointer (type: string, el: Element | Document, opts: Partial<Pointe
   return event;
 }
 
+function hoverOverTarget (instance: any, target: Element) {
+  const spy = vi.spyOn(document, "elementFromPoint").mockReturnValue(target as Element);
+  instance.updateHoverTarget(0, 0);
+  spy.mockRestore();
+}
+
 afterEach(() => {
   document.body.innerHTML = "";
+  vi.mocked(Favorite.move).mockClear();
+  vi.mocked(Favorite.move).mockImplementation(() => Promise.resolve({}));
 });
 
 describe("pages/favorites/FavoriteFolderDrag", () => {
   it("does not leave drag state stuck when the pointer is released over a different element before crossing the threshold", async () => {
     const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
-    const { container, source } = buildFixture();
+    const container = buildContainer();
+    const { source } = buildSource();
+    container.appendChild(source);
     const instance = new FavoriteFolderDrag(container);
 
     firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
@@ -76,7 +104,9 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
 
   it("does not leave drag state stuck on a pointercancel delivered to a different element", async () => {
     const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
-    const { container, source } = buildFixture();
+    const container = buildContainer();
+    const { source } = buildSource();
+    container.appendChild(source);
     const instance = new FavoriteFolderDrag(container);
 
     firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
@@ -87,7 +117,9 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
 
   it("never crosses into drag mode when the pointer is released below the movement threshold, leaving the click untouched", async () => {
     const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
-    const { container, source } = buildFixture();
+    const container = buildContainer();
+    const { source } = buildSource();
+    container.appendChild(source);
     new FavoriteFolderDrag(container);
 
     const downEvent = firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
@@ -106,7 +138,9 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
 
   it("activates once the movement threshold is crossed, even via a document-level pointermove", async () => {
     const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
-    const { container, source } = buildFixture();
+    const container = buildContainer();
+    const { source } = buildSource();
+    container.appendChild(source);
     const instance = new FavoriteFolderDrag(container);
 
     firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
@@ -118,7 +152,9 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
 
   it("suppresses the synthetic click that follows a completed drag", async () => {
     const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
-    const { container, source, link } = buildFixture();
+    const container = buildContainer();
+    const { source, link } = buildSource();
+    container.appendChild(source);
     new FavoriteFolderDrag(container);
 
     firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
@@ -131,5 +167,183 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
     const click = new MouseEvent("click", { bubbles: true, cancelable: true });
     const notPrevented = link.dispatchEvent(click);
     expect(notPrevented).toBe(false); // false means preventDefault() was called
+  });
+
+  it("activates a drag started with pointerdown on the image, not just the footer", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source, img } = buildSource();
+    container.appendChild(source);
+    const instance = new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", img, { clientX: 0, clientY: 0 });
+    expect(instance.drag?.sourceEl).toBe(source);
+
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 });
+    expect(instance.drag?.active).toBe(true);
+  });
+
+  it("prevents native dragstart on a real post thumbnail's image, but not on a folder card", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source, img } = buildSource();
+    const dropTarget = buildDropTarget();
+    container.append(source, dropTarget);
+    new FavoriteFolderDrag(container);
+
+    const onThumbnail = new Event("dragstart", { bubbles: true, cancelable: true });
+    img.dispatchEvent(onThumbnail);
+    expect(onThumbnail.defaultPrevented).toBe(true);
+
+    // Native drag suppression is scoped to real post thumbnails only - folder/Go Up cards
+    // are not part of this feature and must keep their normal browser drag behavior.
+    const onFolder = new Event("dragstart", { bubbles: true, cancelable: true });
+    dropTarget.dispatchEvent(onFolder);
+    expect(onFolder.defaultPrevented).toBe(false);
+  });
+
+  it("keeps the source article in the DOM and in its original grid position throughout the gesture", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource("123");
+    const { source: sibling } = buildSource("456");
+    container.append(source, sibling);
+    new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 }); // activates
+
+    expect(container.contains(source)).toBe(true);
+    expect(Array.from(container.children).indexOf(source)).toBe(0);
+    expect(source.nextElementSibling).toBe(sibling);
+  });
+
+  it("never removes or reinserts the source when the drag is cancelled", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    container.appendChild(source);
+    new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 });
+    firePointer("pointercancel", source);
+
+    expect(container.contains(source)).toBe(true);
+    expect(container.children.length).toBe(1);
+    expect(source.classList.contains("favorite-dragging")).toBe(false);
+  });
+
+  it("never removes the source when the pointer is released over no valid drop target", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    container.appendChild(source);
+    const instance = new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 });
+    // document.elementFromPoint's default stub returns null -> no drop target resolved.
+    instance.updateHoverTarget(20, 0);
+    firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+
+    expect(container.contains(source)).toBe(true);
+    expect(Favorite.move).not.toHaveBeenCalled();
+  });
+
+  it("leaves the source exactly where it was when the move request fails", async () => {
+    vi.mocked(Favorite.move).mockImplementationOnce(() => Promise.reject(new Error("nope")));
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    const dropTarget = buildDropTarget("9");
+    container.append(source, dropTarget);
+    const instance = new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 });
+    hoverOverTarget(instance, dropTarget);
+    firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(container.contains(source)).toBe(true);
+    expect(Array.from(container.children).indexOf(source)).toBe(0);
+    expect(source.classList.contains("favorite-dragging")).toBe(false);
+  });
+
+  it("removes the source only after a successful root -> folder move (filing an unfiled favorite creates a membership, so it leaves the root/unfiled listing)", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    const dropTarget = buildDropTarget("9");
+    container.append(source, dropTarget);
+    const instance = new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 });
+    hoverOverTarget(instance, dropTarget);
+    firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+
+    // Still present immediately after release: removal never happens optimistically, only
+    // once the request has actually resolved.
+    expect(container.contains(source)).toBe(true);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(container.contains(source)).toBe(false);
+    expect(Favorite.move).toHaveBeenCalledWith(123, 9);
+  });
+
+  it("removes the source only after a successful folder -> folder/root move (it's no longer a member of the folder currently being viewed)", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    const dropTarget = buildDropTarget("9");
+    container.append(source, dropTarget);
+    const instance = new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 });
+    hoverOverTarget(instance, dropTarget);
+    firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+
+    expect(container.contains(source)).toBe(true);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(container.contains(source)).toBe(false);
+    expect(Favorite.move).toHaveBeenCalledWith(123, 9);
+  });
+
+  it("never starts a drag from a folder or Go Up card", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const dropTarget = buildDropTarget();
+    container.appendChild(dropTarget);
+    const instance = new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", dropTarget, { clientX: 0, clientY: 0 });
+    expect(instance.drag).toBeNull();
+  });
+
+  it("produces a ghost clone with no duplicated data-id, so it can never match article.thumbnail[data-id]", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    container.appendChild(source);
+    new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 });
+
+    const ghost = document.querySelector(".favorite-drag-ghost");
+    expect(ghost).not.toBeNull();
+    expect(ghost?.hasAttribute("data-id")).toBe(false);
+    expect(ghost?.classList.contains("favorite-dragging")).toBe(false);
+    expect(ghost?.matches("article.thumbnail[data-id]")).toBe(false);
   });
 });

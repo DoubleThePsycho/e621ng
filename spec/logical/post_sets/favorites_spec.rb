@@ -41,6 +41,45 @@ RSpec.describe PostSets::Favorites do
     end
   end
 
+  describe "#posts at root (folder_scoped, folder: nil) - true folder semantics" do
+    it "excludes a favorite that has been filed into a folder" do
+      filed = file_post!(days_ago: 1)
+
+      set = PostSets::Favorites.new(user, "1", limit: 40, folder_scoped: true, folder: nil)
+      expect(set.posts.map(&:id)).not_to include(filed.post_id)
+    end
+
+    it "includes a favorite that has never been filed into any folder" do
+      post = create(:post)
+      unfiled = Favorite.create!(user: user, post: post)
+
+      set = PostSets::Favorites.new(user, "1", limit: 40, folder_scoped: true, folder: nil)
+      expect(set.posts.map(&:id)).to include(unfiled.post_id)
+    end
+
+    it "shows a favorite again at root once it's moved back out of every folder" do
+      filed = file_post!(days_ago: 1)
+
+      FavoriteFolderManager.move!(user: user, post: filed.post, destination_folder_id: nil)
+
+      set = PostSets::Favorites.new(user, "1", limit: 40, folder_scoped: true, folder: nil)
+      expect(set.posts.map(&:id)).to include(filed.post_id)
+    end
+
+    it "does not require any new column or index on favorites - the schema stays exactly as it was before this feature" do
+      expect(Favorite.column_names).to match_array(%w[id user_id post_id created_at])
+      # connection.indexes excludes the implicit primary key index (favorites_pkey).
+      index_names = ActiveRecord::Base.connection.indexes(:favorites).map(&:name)
+      expect(index_names).to match_array(%w[
+        index_favorites_on_post_id
+        index_favorites_on_user_id
+        index_favorites_on_user_id_and_created_at
+        index_favorites_on_user_id_and_id
+        index_favorites_on_user_id_and_post_id
+      ])
+    end
+  end
+
   describe "#posts with a legacy id-based cursor token (the 'aXX'/'bXX' shape PaginatorComponent would emit for an ordinary numbered listing once current_page reaches Danbooru.config.max_numbered_pages)" do
     it "rejects a 'bXX' token outright with PaginationError, instead of translating it" do
       file_post!(days_ago: 1)

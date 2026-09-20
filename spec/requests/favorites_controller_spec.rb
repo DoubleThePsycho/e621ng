@@ -73,7 +73,7 @@ RSpec.describe FavoritesController do
     context "folder-scoped browsing as the owner" do
       before { sign_in_as member }
 
-      it "shows only root-level folders at root, but ALL favorites regardless of folder membership (root = All Favorites, not 'unfiled')" do
+      it "shows only root-level folders at root, and only favorites not currently filed into any folder (true folder semantics)" do
         root_folder = create(:favorite_folder, user: member, name: "Folder A")
         _nested_folder = create(:favorite_folder, user: member, name: "Nested", parent: root_folder)
         root_post = create(:post)
@@ -87,10 +87,25 @@ RSpec.describe FavoritesController do
         expect(response.body).to include("Folder A")
         expect(response.body).not_to include("Nested")
         expect(response.body).to include(%(data-id="#{root_post.id}"))
-        # Root is the unmodified "All Favorites" query - a favorite filed into a folder
-        # still appears here too, since folder membership is opt-in sidecar metadata that
-        # never filters the base Favorites listing.
-        expect(response.body).to include(%(data-id="#{filed_post.id}"))
+        # Root means "unfiled" again - a favorite that's been filed into a folder no
+        # longer appears at root once it has a membership row.
+        expect(response.body).not_to include(%(data-id="#{filed_post.id}"))
+      end
+
+      it "makes a favorite reappear at root once it's moved back out of every folder" do
+        folder = create(:favorite_folder, user: member)
+        post = create(:post)
+        FavoriteManager.add!(user: member, post: post)
+        favorite = Favorite.for_user(member.id).find_by(post_id: post.id)
+        create(:favorite_folder_membership, user: member, folder: folder, favorite: favorite)
+
+        get favorites_path
+        expect(response.body).not_to include(%(data-id="#{post.id}"))
+
+        FavoriteFolderManager.move!(user: member, post: post, destination_folder_id: nil)
+
+        get favorites_path
+        expect(response.body).to include(%(data-id="#{post.id}"))
       end
 
       it "shows only a folder's direct child folders and direct membership rows, not descendants" do
@@ -293,14 +308,30 @@ RSpec.describe FavoritesController do
         expect(FavoriteFolderMembership).not_to have_received(:where)
       end
 
-      it "never queries favorite_folder_memberships at the owner's root (All Favorites)" do
+      # Owner-HTML root deliberately stopped being folder-unaware (see the "folder-scoped
+      # browsing as the owner" context above) - root now means "unfiled," which requires
+      # checking the sidecar table. JSON and non-owner viewing are the two paths that
+      # remain, and must remain, completely flat regardless of folder membership.
+      it "still shows a filed favorite in /favorites.json - JSON stays flat regardless of folder membership" do
+        folder = create(:favorite_folder, user: member)
         FavoriteManager.add!(user: member, post: post_record)
+        favorite = Favorite.for_user(member.id).find_by(post_id: post_record.id)
+        create(:favorite_folder_membership, user: member, folder: folder, favorite: favorite)
         sign_in_as member
-        allow(FavoriteFolderMembership).to receive(:where).and_call_original
-        get favorites_path
-        expect(response).to have_http_status(:ok)
+
+        get favorites_path(format: :json)
+        expect(response.parsed_body["posts"].pluck("id")).to include(post_record.id)
+      end
+
+      it "still shows a filed favorite when a different member views this member's favorites page (non-owner viewing stays flat)" do
+        folder = create(:favorite_folder, user: member)
+        FavoriteManager.add!(user: member, post: post_record)
+        favorite = Favorite.for_user(member.id).find_by(post_id: post_record.id)
+        create(:favorite_folder_membership, user: member, folder: folder, favorite: favorite)
+        sign_in_as other_member
+
+        get favorites_path(user_id: member.id)
         expect(response.body).to include(%(data-id="#{post_record.id}"))
-        expect(FavoriteFolderMembership).not_to have_received(:where)
       end
     end
   end
