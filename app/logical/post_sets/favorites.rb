@@ -122,14 +122,18 @@ module PostSets
     # 50,000-favorite user at several filed percentages: this NOT EXISTS shape gets a
     # Nested Loop Anti Join reusing the existing index_favorites_on_user_id_and_created_at
     # for its outer scan, sub-millisecond for any numbered page reachable through normal
-    # browsing. The one real cost is the count/deep-offset case, where the planner
-    # switches to a Hash Anti Join that scans favorite_folder_memberships in full (~30-40ms
-    # at ~200K membership rows in that benchmark) to build its hash table - that side is
-    # bounded by the sidecar table's own size, not favorites'. The query as a whole is
-    # still bounded by this user's own favorite count (it only ever scans this user's rows
-    # via index_favorites_on_user_id_and_created_at, never the whole 1.4B-row table), and
-    # is paid only once per owner-HTML root page load (never for JSON, non-owner, or
-    # folder pages).
+    # browsing. The count/deep-offset case's plan is data/statistics dependent: at smaller
+    # sidecar sizes Postgres may instead choose a Hash Anti Join that scans
+    # favorite_folder_memberships in full to build its hash table; re-benchmarked in Phase 4
+    # at 5,000,000 favorites with ~2,000,000 memberships (the BG-HIGH state), where the
+    # planner switched back to a Nested Loop Anti Join using favorite_folder_memberships'
+    # own unique favorite_id index instead. Measured plans remained reasonable across every
+    # state tested so far, but don't assume either strategy holds at a size/shape not yet
+    # benchmarked. Either way, the query as a whole is still bounded by this user's own
+    # favorite count (it only ever scans this user's rows via
+    # index_favorites_on_user_id_and_created_at, never the whole 1.4B-row table), and is
+    # paid only once per owner-HTML root page load (never for JSON, non-owner, or folder
+    # pages).
     def root_unfiled_posts
       @posts ||= begin # rubocop:disable Naming/MemoizedInstanceVariableName -- shared memo backing the public `posts` method for both code paths
         scope = ::Favorite.for_user(@user.id)

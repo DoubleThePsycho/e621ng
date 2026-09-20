@@ -5020,17 +5020,17 @@ CREATE UNIQUE INDEX index_favorite_folder_memberships_on_favorite_id ON public.f
 
 
 --
--- Name: index_favorite_folder_memberships_on_user_folder_created_at; Type: INDEX; Schema: public; Owner: -
+-- Name: index_favorite_folder_memberships_on_folder_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_favorite_folder_memberships_on_user_folder_created_at ON public.favorite_folder_memberships USING btree (user_id, folder_id, favorite_created_at);
+CREATE INDEX index_favorite_folder_memberships_on_folder_id ON public.favorite_folder_memberships USING btree (folder_id);
 
 
 --
--- Name: index_favorite_folder_memberships_on_user_folder_id; Type: INDEX; Schema: public; Owner: -
+-- Name: index_favorite_folder_memberships_user_folder_created_favorite; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_favorite_folder_memberships_on_user_folder_id ON public.favorite_folder_memberships USING btree (user_id, folder_id, id);
+CREATE INDEX index_favorite_folder_memberships_user_folder_created_favorite ON public.favorite_folder_memberships USING btree (user_id, folder_id, favorite_created_at, favorite_id);
 
 
 --

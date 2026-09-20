@@ -78,6 +78,15 @@ RSpec.describe PostSets::Favorites do
         index_favorites_on_user_id_and_post_id
       ])
     end
+
+    it "gives favorite_folder_memberships exactly its final index layout - no separate (user_id, folder_id, id) index, since folder pagination is numbered-only and never orders by this table's own id" do
+      index_names = ActiveRecord::Base.connection.indexes(:favorite_folder_memberships).map(&:name)
+      expect(index_names).to match_array(%w[
+        index_favorite_folder_memberships_on_favorite_id
+        index_favorite_folder_memberships_on_folder_id
+        index_favorite_folder_memberships_user_folder_created_favorite
+      ])
+    end
   end
 
   describe "#posts with a legacy id-based cursor token (the 'aXX'/'bXX' shape PaginatorComponent would emit for an ordinary numbered listing once current_page reaches Danbooru.config.max_numbered_pages)" do

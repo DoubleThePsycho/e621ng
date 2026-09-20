@@ -38,16 +38,22 @@ class CreateFavoriteFolderMemberships < ActiveRecord::Migration[8.1]
     #
     # Cost: this FK does add real, measured overhead to DELETEs from favorites (never to
     # reads/writes-that-aren't-deletes) - it is NOT free, and claiming favorites is fully
-    # "untouched" would be inaccurate. Benchmarked via EXPLAIN (ANALYZE, BUFFERS) against a
-    # synthetic 20,000-row favorites batch (10% carrying a membership row, mirroring light
-    # folder-feature adoption): deleting 10,000 rows took 168.7ms with this FK in place, of
-    # which the constraint trigger itself accounted for 142.8ms (~85% of total, ~14us/row);
-    # the same delete with the FK removed took 19.3ms. That overhead scales only with the
-    # number of rows actually deleted from favorites and with favorite_folder_memberships'
-    # own (small) index size - never with favorites' total row count, since the cascade
-    # locates child rows via this table's own favorite_id index, not a scan of favorites.
-    # It lands on already-background/batch paths (FlushFavoritesJob, TransferFavoritesJob),
-    # not on any user-facing read.
+    # "untouched" would be inaccurate. Benchmarked (Phase 4.5, e621_benchmark, 5,000,000
+    # favorites / 138,400 memberships) via an A/B EXPLAIN (ANALYZE, BUFFERS) comparison that
+    # deleted the identical, pre-selected 10,000 favorite ids (all carrying a membership row)
+    # first with this FK present, then with it dropped and immediately restored: 165.2ms with
+    # the FK vs 19.5ms without, of which the constraint trigger itself accounted for 147.1ms
+    # (~89% of the FK-present total) - roughly ~14.6us/row of pure FK overhead, confirming the
+    # feature's original benchmark estimate. That overhead scales only with the number of rows
+    # actually deleted from favorites and with favorite_folder_memberships' own (small) index
+    # size - never with favorites' total row count, since the cascade locates child rows via
+    # this table's own favorite_id index, not a scan of favorites. It lands on already-
+    # background/batch paths (FlushFavoritesJob, TransferFavoritesJob), not on any user-facing
+    # read. (Separately, Phase 4.5 also measured that - with the FK present in both cases -
+    # deleting a favorite that actually has a membership costs only ~1.3us/row more than
+    # deleting one that doesn't: that narrower number is about membership presence/absence,
+    # not about the FK's own overhead, and should not be conflated with the ~14.6us/row figure
+    # above.)
     #
     # Net: given 4/5 deletion sites bypass callbacks, the reliability case for the FK
     # outweighs its bounded, non-scaling, delete-path-only cost.
@@ -59,14 +65,24 @@ class CreateFavoriteFolderMemberships < ActiveRecord::Migration[8.1]
               unique: true,
               name: "index_favorite_folder_memberships_on_favorite_id"
 
-    # Folder-page listing/count, numbered-pagination mode: ORDER BY favorite_created_at.
-    add_index :favorite_folder_memberships, %i[user_id folder_id favorite_created_at],
-              name: "index_favorite_folder_memberships_on_user_folder_created_at"
+    # folder_id-only operations: FavoriteFolderManager's delete!/move! promotion
+    # (`.where(folder_id: folder.id).delete_all` / `.update_all(folder_id: new_parent_id)`)
+    # and the dependent: :restrict_with_exception child-existence check on FavoriteFolder
+    # all filter on folder_id alone, with no user_id in the predicate. Benchmarked
+    # (Phase 4.5): without this index these did a full Seq Scan of the whole membership
+    # table regardless of target-folder size; with it, an Index Scan keyed on folder_id.
+    add_index :favorite_folder_memberships, :folder_id,
+              name: "index_favorite_folder_memberships_on_folder_id"
 
-    # Folder-page listing, sequential (a/b cursor) pagination mode: ORDER BY id, mirroring
-    # why (user_id, id) exists on favorites itself (20260827214903) - Danbooru::Paginator's
-    # sequential mode always keys off the queried table's own id column.
-    add_index :favorite_folder_memberships, %i[user_id folder_id id],
-              name: "index_favorite_folder_memberships_on_user_folder_id"
+    # Folder-page listing/count. Serves WHERE user_id = ? AND folder_id = ? plus the
+    # canonical ORDER BY favorite_created_at DESC, favorite_id DESC (favorite_id is the
+    # tiebreaker for rows sharing the same favorite_created_at) without a separate sort
+    # step; folder counts are served by the same index via its leading (user_id, folder_id)
+    # prefix. Folder pagination is numbered-only (see PostSets::Favorites) and never orders
+    # by this table's own id, so no separate (user_id, folder_id, id) index is needed.
+    # Name shortened to stay under Postgres's 63-byte identifier limit - the auto-derived
+    # name (with "_on_") is 65 bytes and would be silently truncated.
+    add_index :favorite_folder_memberships, %i[user_id folder_id favorite_created_at favorite_id],
+              name: "index_favorite_folder_memberships_user_folder_created_favorite"
   end
 end
