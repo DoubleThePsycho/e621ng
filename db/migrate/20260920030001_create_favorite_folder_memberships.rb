@@ -84,5 +84,35 @@ class CreateFavoriteFolderMemberships < ActiveRecord::Migration[8.1]
     # name (with "_on_") is 65 bytes and would be silently truncated.
     add_index :favorite_folder_memberships, %i[user_id folder_id favorite_created_at favorite_id],
               name: "index_favorite_folder_memberships_user_folder_created_favorite"
+
+    # Every membership row's folder_id determines its user_id (a folder belongs to exactly
+    # one user), but Postgres's default single-column statistics assume user_id and
+    # folder_id are independent - given a query filtering on both (the canonical folder
+    # listing/count shape above), it multiplies their individual selectivities together and
+    # badly underestimates how many rows actually match. Phase 5.5 measured this directly:
+    # Large Folder's real 23,947 rows estimated at ~45 without this object, ~21,972 with
+    # it; Medium A's real 7,981 estimated at ~10 vs ~6,658. No execution-time or plan-shape
+    # regression was observed either way - this is planner-estimate hardening (guards
+    # against a bad plan choice in a more complex future query touching this table), not a
+    # claim that it measurably speeds up today's simple queries.
+    #
+    # Raw SQL wrapped in `reversible`, not a Rails DSL helper - ActiveRecord has none for
+    # CREATE STATISTICS. `execute` alone would not be auto-reversible inside `change`;
+    # `reversible`'s `dir.down` makes rollback explicit. Ordering is safe by construction:
+    # Rails undoes a `change` migration in reverse statement order, so this block's
+    # `dir.down` (DROP STATISTICS) always runs before the `create_table` above is reversed
+    # (DROP TABLE) - never after.
+    reversible do |dir|
+      dir.up do
+        execute <<~SQL.squish
+          CREATE STATISTICS statistics_ffm_user_folder (dependencies, ndistinct)
+            ON user_id, folder_id
+            FROM favorite_folder_memberships;
+        SQL
+      end
+      dir.down do
+        execute "DROP STATISTICS IF EXISTS statistics_ffm_user_folder;"
+      end
+    end
   end
 end

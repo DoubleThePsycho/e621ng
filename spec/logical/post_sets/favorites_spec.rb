@@ -87,6 +87,26 @@ RSpec.describe PostSets::Favorites do
         index_favorite_folder_memberships_user_folder_created_favorite
       ])
     end
+
+    it "adds an extended-statistics object on (user_id, folder_id) covering dependencies and ndistinct - folder_id determines user_id 1:1, which Postgres cannot infer from single-column stats alone (Phase 5.5 measured a >500x row-count misestimate without it; see migration comment)" do
+      # Checks the catalog OBJECT, not computed values (pg_statistic_ext_data) - the
+      # object exists as soon as the migration runs, before any ANALYZE.
+      columns = ActiveRecord::Base.connection.select_rows(<<~SQL.squish).flatten
+        SELECT a.attname
+        FROM pg_statistic_ext e
+        JOIN pg_class c ON c.oid = e.stxrelid
+        JOIN pg_attribute a ON a.attrelid = e.stxrelid AND a.attnum = ANY (e.stxkeys)
+        WHERE e.stxname = 'statistics_ffm_user_folder' AND c.relname = 'favorite_folder_memberships'
+      SQL
+      expect(columns).to match_array(%w[user_id folder_id])
+
+      # stxkind is a "char"[] (e.g. "{d,f}") - order is not guaranteed, so compare as a
+      # set. d = ndistinct, f = dependencies (Postgres's internal single-char codes).
+      stxkind = ActiveRecord::Base.connection.select_value(
+        "SELECT stxkind::text FROM pg_statistic_ext WHERE stxname = 'statistics_ffm_user_folder'",
+      )
+      expect(stxkind.delete("{}").split(",")).to match_array(%w[d f])
+    end
   end
 
   describe "#posts with a legacy id-based cursor token (the 'aXX'/'bXX' shape PaginatorComponent would emit for an ordinary numbered listing once current_page reaches Danbooru.config.max_numbered_pages)" do

@@ -6281,6 +6281,13 @@ CREATE INDEX index_wiki_pages_on_updated_at ON public.wiki_pages USING btree (up
 
 
 --
+-- Name: statistics_ffm_user_folder; Type: STATISTICS; Schema: public; Owner: -
+--
+
+CREATE STATISTICS public.statistics_ffm_user_folder (ndistinct, dependencies) ON user_id, folder_id FROM public.favorite_folder_memberships;
+
+
+--
 -- Name: posts posts_update_change_seq; Type: TRIGGER; Schema: public; Owner: -
 --
 
