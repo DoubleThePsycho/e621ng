@@ -141,24 +141,43 @@ class FavoriteFolderManager
   end
   private_class_method :delete_locked!
 
-  # Move a favorited post to a destination folder (or back to All Favorites/root).
+  # Move a favorited post to a destination folder (or back to root, i.e. unfiled).
   # @param user [User] The user performing the move
   # @param post [Post] The post whose favorite is being moved
   # @param destination_folder_id [Integer, nil] The destination folder's id, or nil/blank for root
   # @return [FavoriteFolder, nil] The destination folder, or nil when moved back to root
   # @raises [Error] When the post isn't favorited by the user, or the destination is invalid
   def self.move!(user:, post:, destination_folder_id:)
-    favorite = Favorite.for_user(user.id).find_by(post_id: post.id)
-    raise Error, "You have not favorited this post" if favorite.nil?
+    Favorite.transaction do
+      # Locked, fresh lookup - not just the read used to decide whether to raise below -
+      # so a concurrent unfavorite (FavoriteManager.remove!) or TransferFavoritesJob
+      # (which deletes/replaces Favorite rows outside any lock this call previously took)
+      # can no longer delete this row between the lookup and the upsert below. Either this
+      # blocks until that concurrent transaction finishes (then re-reads a still-valid
+      # row), or - if it already committed and removed the favorite - this simply finds no
+      # row and raises the normal domain error, never a raw ActiveRecord::InvalidForeignKey
+      # from upserting a membership against a favorite_id that no longer exists.
+      #
+      # Locked FIRST, before the destination folder below: this preserves the existing
+      # error precedence (a missing favorite was already reported before an invalid
+      # destination, even when both are true), and fixes the lock order for good - no
+      # other code path ever locks a Favorite row and then wants a FavoriteFolder row (or
+      # vice versa): create!/delete! only ever lock FavoriteFolder rows, and
+      # FavoriteManager.remove!/TransferFavoritesJob only ever lock Post then Favorite
+      # rows, never touching FavoriteFolder. With no other transaction ever holding one of
+      # these two lock types while waiting on the other, this pair can't form a cycle
+      # regardless of which order was picked - Favorite-then-Folder here is chosen only to
+      # match the pre-existing validation order, not because the alternative would deadlock.
+      favorite = Favorite.lock.for_user(user.id).find_by(post_id: post.id)
+      raise Error, "You have not favorited this post" if favorite.nil?
 
-    if destination_folder_id.blank?
-      # Root/All Favorites is not a physical folder - "moved to root" means the
-      # membership row is removed entirely, never a synthetic folder_id.
-      FavoriteFolderMembership.where(favorite_id: favorite.id).delete_all
-      return nil
-    end
+      if destination_folder_id.blank?
+        # Root (unfiled) is not a physical folder - "moved to root" means the membership
+        # row is removed entirely, never a synthetic folder_id.
+        FavoriteFolderMembership.where(favorite_id: favorite.id).delete_all
+        next nil
+      end
 
-    FavoriteFolder.transaction do
       # Same locked, fresh-lookup contract as create!'s parent lock: blocks if delete!
       # holds this folder's lock, and returns nil (not an exception) if it already
       # committed and removed the row.

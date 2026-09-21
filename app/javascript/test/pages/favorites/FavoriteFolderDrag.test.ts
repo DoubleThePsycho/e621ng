@@ -65,10 +65,14 @@ function firePointer (type: string, el: Element | Document, opts: Partial<Pointe
   return event;
 }
 
-function hoverOverTarget (instance: any, target: Element) {
-  const spy = vi.spyOn(document, "elementFromPoint").mockReturnValue(target as Element);
-  instance.updateHoverTarget(0, 0);
-  spy.mockRestore();
+// Simulates a RAF that resolved to `target` BEFORE release and is still the correct
+// target AT release - i.e. document.elementFromPoint keeps returning `target` through
+// the pointerup call too, matching how onPointerUp now re-resolves synchronously from
+// the release coordinates rather than trusting a possibly-stale drag.currentTarget.
+// Callers must call the returned restore() after firing pointerup.
+function mockElementFromPoint (target: Element | null) {
+  const spy = vi.spyOn(document, "elementFromPoint").mockReturnValue(target);
+  return () => spy.mockRestore();
 }
 
 afterEach(() => {
@@ -258,12 +262,13 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
     const { source } = buildSource();
     const dropTarget = buildDropTarget("9");
     container.append(source, dropTarget);
-    const instance = new FavoriteFolderDrag(container);
+    new FavoriteFolderDrag(container);
 
     firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
     firePointer("pointermove", document, { clientX: 20, clientY: 0 });
-    hoverOverTarget(instance, dropTarget);
+    const restoreElementFromPoint = mockElementFromPoint(dropTarget);
     firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+    restoreElementFromPoint();
 
     await Promise.resolve();
     await Promise.resolve();
@@ -279,12 +284,13 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
     const { source } = buildSource();
     const dropTarget = buildDropTarget("9");
     container.append(source, dropTarget);
-    const instance = new FavoriteFolderDrag(container);
+    new FavoriteFolderDrag(container);
 
     firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
     firePointer("pointermove", document, { clientX: 20, clientY: 0 });
-    hoverOverTarget(instance, dropTarget);
+    const restoreElementFromPoint = mockElementFromPoint(dropTarget);
     firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+    restoreElementFromPoint();
 
     // Still present immediately after release: removal never happens optimistically, only
     // once the request has actually resolved.
@@ -303,12 +309,13 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
     const { source } = buildSource();
     const dropTarget = buildDropTarget("9");
     container.append(source, dropTarget);
-    const instance = new FavoriteFolderDrag(container);
+    new FavoriteFolderDrag(container);
 
     firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
     firePointer("pointermove", document, { clientX: 20, clientY: 0 });
-    hoverOverTarget(instance, dropTarget);
+    const restoreElementFromPoint = mockElementFromPoint(dropTarget);
     firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+    restoreElementFromPoint();
 
     expect(container.contains(source)).toBe(true);
 
@@ -345,5 +352,80 @@ describe("pages/favorites/FavoriteFolderDrag", () => {
     expect(ghost?.hasAttribute("data-id")).toBe(false);
     expect(ghost?.classList.contains("favorite-dragging")).toBe(false);
     expect(ghost?.matches("article.thumbnail[data-id]")).toBe(false);
+  });
+
+  it("A: resolves the correct drop target on release even when the queued RAF has not run yet (entered the folder just before release)", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    const dropTarget = buildDropTarget("9");
+    container.append(source, dropTarget);
+    new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 }); // activates
+
+    // Post-activation move "enters" the folder - this schedules a RAF via onPointerMove
+    // (updateHoverTarget), but that RAF is deliberately never flushed here, so it has not
+    // run by the time pointerup fires right after - exactly the race being regressed
+    // against. Before the fix, drag.currentTarget would still be null at this point, and
+    // release would silently no-op instead of moving the favorite.
+    const restoreDuringMove = mockElementFromPoint(dropTarget);
+    firePointer("pointermove", source, { clientX: 20, clientY: 0 });
+    restoreDuringMove();
+
+    // document.elementFromPoint must resolve to the folder again at the moment of
+    // release, since onPointerUp now re-resolves synchronously from the pointerup
+    // event's own coordinates instead of relying on the never-run queued RAF.
+    const restoreAtRelease = mockElementFromPoint(dropTarget);
+    firePointer("pointerup", source, { clientX: 20, clientY: 0 });
+    restoreAtRelease();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(Favorite.move).toHaveBeenCalledWith(123, 9);
+    expect(container.contains(source)).toBe(false);
+  });
+
+  it("B: uses the CURRENT target at release, never a stale previous one, when the pointer moved to a different folder before the queued RAF ran", async () => {
+    const { default: FavoriteFolderDrag } = await import("@/pages/favorites/FavoriteFolderDrag");
+    const container = buildContainer();
+    const { source } = buildSource();
+    const folderA = buildDropTarget("9");
+    const folderB = buildDropTarget("11");
+    container.append(source, folderA, folderB);
+    const instance = new FavoriteFolderDrag(container);
+
+    firePointer("pointerdown", source, { clientX: 0, clientY: 0 });
+    firePointer("pointermove", document, { clientX: 20, clientY: 0 }); // activates
+
+    // First hover: the pointer was over folder A and its RAF actually ran (simulated
+    // directly, matching how the tests above already simulate "the RAF already ran") -
+    // drag.currentTarget is now folder A.
+    const restoreA = mockElementFromPoint(folderA);
+    instance.updateHoverTarget(10, 0);
+    restoreA();
+    expect(instance.drag?.currentTarget).toBe(folderA);
+
+    // The pointer then moves to folder B - this schedules a new RAF via onPointerMove,
+    // but it is never flushed, so drag.currentTarget is still folder A going into
+    // pointerup - the exact stale-target scenario being regressed against.
+    const restoreDuringMove = mockElementFromPoint(folderB);
+    firePointer("pointermove", source, { clientX: 30, clientY: 0 });
+    restoreDuringMove();
+    expect(instance.drag?.currentTarget).toBe(folderA); // unchanged - the queued RAF hasn't run
+
+    // Release happens over folder B - onPointerUp must re-resolve synchronously here and
+    // commit against B, never the stale A.
+    const restoreAtRelease = mockElementFromPoint(folderB);
+    firePointer("pointerup", source, { clientX: 30, clientY: 0 });
+    restoreAtRelease();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(Favorite.move).toHaveBeenCalledWith(123, 11);
+    expect(Favorite.move).not.toHaveBeenCalledWith(123, 9);
   });
 });

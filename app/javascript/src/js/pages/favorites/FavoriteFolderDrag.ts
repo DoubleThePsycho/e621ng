@@ -244,6 +244,14 @@ export default class FavoriteFolderDrag {
   onPointerUp = (event: PointerEvent): void => {
     const drag = this.drag;
     if (!drag || event.pointerId !== drag.pointerId) return;
+    // Resolve the drop target synchronously from THIS event's own release coordinates,
+    // rather than trusting whatever the RAF-throttled updateHoverTarget last computed:
+    // that queued frame may not have run yet (a fast flick can enter a valid target and
+    // release before the browser's next paint), which would otherwise either drop a
+    // valid release as a no-op (currentTarget still null) or commit against a stale
+    // previous target instead of where the pointer actually is now. endDrag still cancels
+    // any pending RAF below, so that now-redundant frame never fires after this.
+    this.updateHoverTarget(event.clientX, event.clientY);
     this.endDrag(false);
   };
 

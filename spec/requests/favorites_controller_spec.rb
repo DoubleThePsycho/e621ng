@@ -472,6 +472,14 @@ RSpec.describe FavoritesController do
         FavoriteManager.add!(user: member, post: post_record)
       end
 
+      it "returns 423 when favorites transfer is in progress" do
+        folder = create(:favorite_folder, user: member)
+        post_record.update_columns(bit_flags: post_record.bit_flags | Post.flag_value_for("favorites_transfer_in_progress"))
+        post move_favorite_path(post_record, format: :json), params: { favorite_folder_id: folder.id }
+        expect(response).to have_http_status(:locked)
+        expect(FavoriteFolderMembership.where(user_id: member.id)).to be_empty
+      end
+
       it "moves a favorite from root into a folder" do
         folder = create(:favorite_folder, user: member)
         post move_favorite_path(post_record, format: :json), params: { favorite_folder_id: folder.id }

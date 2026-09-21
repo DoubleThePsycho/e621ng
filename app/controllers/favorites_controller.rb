@@ -73,6 +73,11 @@ class FavoritesController < ApplicationController
   def move
     @post = Post.find(params[:id])
 
+    if @post.favorites_transfer_in_progress?
+      render_expected_error(423, "Post favorites are being transferred, please try again later")
+      return
+    end
+
     destination = FavoriteFolderManager.move!(user: CurrentUser.user, post: @post, destination_folder_id: params[:favorite_folder_id])
 
     render json: { post_id: @post.id, favorite_folder_id: destination&.id }

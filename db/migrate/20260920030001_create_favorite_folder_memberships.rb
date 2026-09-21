@@ -60,17 +60,19 @@ class CreateFavoriteFolderMemberships < ActiveRecord::Migration[8.1]
     add_foreign_key :favorite_folder_memberships, :favorites, column: :favorite_id, on_delete: :cascade
 
     # One Favorite can be filed into at most one folder. Also serves as the lookup index
-    # for point moves/removals by favorite_id (move!, unfiling back to All Favorites).
+    # for point moves/removals by favorite_id (move!, unfiling back to root).
     add_index :favorite_folder_memberships, :favorite_id,
               unique: true,
               name: "index_favorite_folder_memberships_on_favorite_id"
 
-    # folder_id-only operations: FavoriteFolderManager's delete!/move! promotion
-    # (`.where(folder_id: folder.id).delete_all` / `.update_all(folder_id: new_parent_id)`)
-    # and the dependent: :restrict_with_exception child-existence check on FavoriteFolder
-    # all filter on folder_id alone, with no user_id in the predicate. Benchmarked
-    # (Phase 4.5): without this index these did a full Seq Scan of the whole membership
-    # table regardless of target-folder size; with it, an Index Scan keyed on folder_id.
+    # folder_id-only operations: FavoriteFolderManager's delete_locked! promotion
+    # (`.where(folder_id: folder.id).delete_all` / `.update_all(folder_id: new_parent_id)`,
+    # run when a folder is deleted and its contents are promoted to the parent/root - NOT
+    # issued by move!, which only ever touches a single row by favorite_id) and the
+    # dependent: :restrict_with_exception child-existence check on FavoriteFolder all
+    # filter on folder_id alone, with no user_id in the predicate. Benchmarked (Phase 4.5):
+    # without this index these did a full Seq Scan of the whole membership table
+    # regardless of target-folder size; with it, an Index Scan keyed on folder_id.
     add_index :favorite_folder_memberships, :folder_id,
               name: "index_favorite_folder_memberships_on_folder_id"
 

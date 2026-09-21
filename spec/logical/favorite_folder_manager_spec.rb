@@ -275,6 +275,38 @@ RSpec.describe FavoriteFolderManager do
       expect(FavoriteFolder).to have_received(:lock)
     end
 
+    it "locks the favorite row before using it (exercises the locked lookup path, not a stale pre-fetched reference)" do
+      folder = create(:favorite_folder, user: user)
+      allow(Favorite).to receive(:lock).and_call_original
+      FavoriteFolderManager.move!(user: user, post: post_record, destination_folder_id: folder.id)
+      expect(Favorite).to have_received(:lock)
+    end
+
+    it "raises the normal domain error, not a raw DB exception, when the favorite was already deleted before move! could lock it - the race a concurrent unfavorite (FavoriteManager.remove!) or TransferFavoritesJob can cause" do
+      folder = create(:favorite_folder, user: user)
+      favorite = Favorite.for_user(user.id).find_by(post_id: post_record.id)
+      # delete_all, not favorite.destroy: mirrors how FavoriteManager.remove! and
+      # TransferFavoritesJob actually remove Favorite rows in production (bypassing
+      # callbacks), which is the real shape of the race this test stands in for.
+      Favorite.where(id: favorite.id).delete_all
+
+      expect { FavoriteFolderManager.move!(user: user, post: post_record, destination_folder_id: folder.id) }
+        .to raise_error(FavoriteFolderManager::Error, "You have not favorited this post")
+
+      # Not just "doesn't raise a raw error" - actually produced no membership row for the
+      # now-nonexistent favorite_id, which is what an unguarded upsert would otherwise
+      # have attempted and failed on with ActiveRecord::InvalidForeignKey.
+      expect(FavoriteFolderMembership.where(user_id: user.id)).to be_empty
+    end
+
+    it "raises the normal domain error when moving to root and the favorite was already deleted concurrently (the delete_all-to-root path, not just the upsert-to-folder path)" do
+      favorite = Favorite.for_user(user.id).find_by(post_id: post_record.id)
+      Favorite.where(id: favorite.id).delete_all
+
+      expect { FavoriteFolderManager.move!(user: user, post: post_record, destination_folder_id: nil) }
+        .to raise_error(FavoriteFolderManager::Error, "You have not favorited this post")
+    end
+
     it "raises when the destination folder belongs to another user" do
       other_folder = create(:favorite_folder, user: other_user)
       expect { FavoriteFolderManager.move!(user: user, post: post_record, destination_folder_id: other_folder.id) }

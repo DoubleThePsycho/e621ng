@@ -41,6 +41,13 @@ RSpec.describe FavoriteFolderMembership do
     expect(membership.errors[:folder]).to be_present
   end
 
+  it "rejects a favorite_created_at that does not match the favorite's created_at" do
+    membership = FavoriteFolderMembership.new(user: user, folder: folder, favorite: favorite,
+                                              post_id: favorite.post_id, favorite_created_at: favorite.created_at + 1.day)
+    expect(membership).not_to be_valid
+    expect(membership.errors[:favorite_created_at]).to be_present
+  end
+
   it "rejects a duplicate favorite_id" do
     create(:favorite_folder_membership, user: user, folder: folder, favorite: favorite)
     duplicate = FavoriteFolderMembership.new(user: user, folder: folder, favorite: favorite,

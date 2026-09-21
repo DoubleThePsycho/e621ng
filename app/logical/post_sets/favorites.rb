@@ -97,9 +97,12 @@ module PostSets
     private
 
     # The base Favorites query, byte-identical to how it worked before folders existed:
-    # no join, no anti-join, no NOT EXISTS, no folder predicate of any kind. This is what
-    # keeps `/favorites`, `/favorites.json`, and any other user's favorites page entirely
-    # unaware that folder membership exists as a concept.
+    # no join, no anti-join, no NOT EXISTS, no folder predicate of any kind. This backs
+    # every request that isn't the owner's own folder-scoped HTML view - `/favorites.json`
+    # and any other user's `/favorites` (HTML or JSON) - which stay entirely unaware that
+    # folder membership exists as a concept. The owner's own HTML `/favorites` is NOT
+    # universally flat: see `posts` above - it's folder-scoped (root_unfiled_posts /
+    # folder_membership_posts) precisely because it's the owner viewing their own folders.
     def legacy_flat_posts
       @post_count ||= ::Post.tag_match("fav:#{@user.name} status:any").count_only
       @posts ||= begin # rubocop:disable Naming/MemoizedInstanceVariableName -- shared memo backing the public `posts` method for both code paths
@@ -117,21 +120,27 @@ module PostSets
     # favorites (there is none), just an anti-membership check against the sidecar table,
     # keyed by favorite_id and served entirely by that table's own existing unique index
     # (index_favorite_folder_memberships_on_favorite_id) - no new column or index on
-    # favorites, and no new index on favorite_folder_memberships either. Benchmarked (see
-    # commit message / PR notes) against a synthetic 2.05M-row favorites table with a
-    # 50,000-favorite user at several filed percentages: this NOT EXISTS shape gets a
-    # Nested Loop Anti Join reusing the existing index_favorites_on_user_id_and_created_at
-    # for its outer scan, sub-millisecond for any numbered page reachable through normal
-    # browsing. The count/deep-offset case's plan is data/statistics dependent: at smaller
-    # sidecar sizes Postgres may instead choose a Hash Anti Join that scans
-    # favorite_folder_memberships in full to build its hash table; re-benchmarked in Phase 4
-    # at 5,000,000 favorites with ~2,000,000 memberships (the BG-HIGH state), where the
-    # planner switched back to a Nested Loop Anti Join using favorite_folder_memberships'
-    # own unique favorite_id index instead. Measured plans remained reasonable across every
-    # state tested so far, but don't assume either strategy holds at a size/shape not yet
-    # benchmarked. Either way, the query as a whole is still bounded by this user's own
+    # favorites, and no new index on favorite_folder_memberships either.
+    #
+    # Plan choice for this NOT EXISTS shape is data/statistics dependent, not fixed: at
+    # smaller sidecar sizes Postgres may choose a Hash Anti Join that scans
+    # favorite_folder_memberships in full to build its hash table; at larger sidecar sizes
+    # it has been observed to switch to a Nested Loop Anti Join using
+    # favorite_folder_memberships' own unique favorite_id index instead. Don't assume
+    # either strategy holds at a size/shape not yet measured.
+    #
+    # Strongest evidence so far is Phase 5/5.5 (see PR notes), tested up to 50,000,000
+    # favorites / ~20,000,000 memberships: a Nested Loop Anti Join page-1 lookup ran
+    # ~16ms, and a full anti-join COUNT over an 80,000-row probe set ran ~110ms - both
+    # against favorite_ids deliberately scattered across the full id range (not a
+    # synthetic user's own tightly-clustered ids), which Phase 5.5 showed can make
+    # contiguous/local synthetic data look roughly 1.3-2.1x more optimistic than a real,
+    # dispersed access pattern depending on the operation. These numbers are all
+    # comfortably acceptable for this page, but should not be read as a universal
+    # sub-millisecond guarantee - measure again if the access pattern or scale changes
+    # materially. Either way, the query as a whole is still bounded by this user's own
     # favorite count (it only ever scans this user's rows via
-    # index_favorites_on_user_id_and_created_at, never the whole 1.4B-row table), and is
+    # index_favorites_on_user_id_and_created_at, never the whole favorites table), and is
     # paid only once per owner-HTML root page load (never for JSON, non-owner, or folder
     # pages).
     def root_unfiled_posts
@@ -201,6 +210,12 @@ module PostSets
           # derives from total_count) from ever advertising a page beyond what
           # validate_numbered_page! actually allows.
           total_count: capped_total_count(count, records_per_page),
+          # The real, uncapped membership count - already computed above via `count`, no
+          # second COUNT query. Lets PaginationHelper#approximate_count show a true "over
+          # N results" once a folder outgrows the numbered-page ceiling, instead of
+          # reading the capped total_count above and mistaking it for the real, exact
+          # total. Never affects pagination math itself - only total_count (above) does.
+          real_total_count: count,
           # Kept strictly above Danbooru.config.max_numbered_pages (the real, unmodified
           # validation ceiling parse_page/validate_numbered_page! enforce above) so
           # PaginatorComponent's own `current_page >= max_numbered_pages` switch - shared,

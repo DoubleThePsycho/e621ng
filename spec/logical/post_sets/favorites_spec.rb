@@ -155,6 +155,34 @@ RSpec.describe PostSets::Favorites do
       expect(posts.total_pages).to eq(2)
       expect(posts.is_last_page?).to be true
     end
+
+    it "keeps total_count capped at the pagination ceiling while separately exposing the real, uncapped membership count - a folder whose real count exceeds the reachable ceiling" do
+      allow(Danbooru.config.custom_configuration).to receive(:max_numbered_pages).and_return(2)
+      3.times { |i| file_post!(days_ago: 3 - i) } # real count 3, ceiling = 2 pages * 1/page = 2
+
+      set = PostSets::Favorites.new(user, "2", limit: 1, folder_scoped: true, folder: folder)
+      posts = set.posts
+
+      # Pagination metadata itself stays capped exactly as before - this is what keeps
+      # numbered pagination from ever advertising a page beyond the reachable ceiling.
+      expect(posts.total_count).to eq(2)
+      expect(posts.total_pages).to eq(2)
+
+      # But the real count is not lost - it's available for display purposes without a
+      # second COUNT query, and capped? correctly flags that capping actually occurred.
+      expect(posts.real_total_count).to eq(3)
+      expect(posts.capped?).to be true
+    end
+
+    it "does not consider a folder capped when its real count fits within the reachable ceiling (real_total_count still set, but equal to total_count)" do
+      file_post!(days_ago: 1)
+
+      set = PostSets::Favorites.new(user, "1", limit: 40, folder_scoped: true, folder: folder)
+      posts = set.posts
+
+      expect(posts.real_total_count).to eq(posts.total_count)
+      expect(posts.capped?).to be false
+    end
   end
 
   describe "SQL executed" do
