@@ -7,6 +7,7 @@
  * A ghost clone follows the pointer while dragging; a placeholder shows
  * the pending drop position. Pointer capture routes all move/up events
  * to the grabbed element so no document-level listeners are needed.
+ * Holding the pointer near the top or bottom of the viewport scrolls the page.
  *
  * @example
  * const sortable = new Sortable(containerEl, {
@@ -24,6 +25,15 @@
  * // Cleanup
  * sortable.destroy();
  */
+/** Distance from the top/bottom viewport edge at which a drag starts scrolling the page. */
+const AUTOSCROLL_EDGE = 60;
+
+/** Autoscroll speed at the very edge of the viewport, in pixels per second. */
+const AUTOSCROLL_MAX_SPEED = 1200;
+
+/** Longest frame gap used for an autoscroll step, so a stalled frame can't cause a jump. */
+const AUTOSCROLL_MAX_FRAME = 50;
+
 export interface SortableOptions {
   /** CSS selector for sortable items within the container. Defaults to `"li"`. */
   itemSelector?: string;
@@ -81,7 +91,16 @@ export default class Sortable {
 
   /** requestAnimationFrame coalescing for placeholder repositioning */
   private _rafId: number;
-  private _pendingMove: PointerPosition | null;
+
+  /**
+   * Latest pointer position of the active drag; shared by placeholder
+   * repositioning, the final drop and autoscroll
+   */
+  private _lastPointer: PointerPosition | null;
+
+  /** Edge autoscroll loop */
+  private _scrollRafId: number;
+  private _scrollLastTs: DOMHighResTimeStamp;
 
   private $ghost: JQuery<HTMLElement> | null = null;
   private $placeholder: JQuery<HTMLElement> | null = null;
@@ -107,7 +126,9 @@ export default class Sortable {
 
     this._drag = null;
     this._rafId = 0;
-    this._pendingMove = null;
+    this._lastPointer = null;
+    this._scrollRafId = 0;
+    this._scrollLastTs = 0;
 
     this._rebuildIndex();
     this.bindAll();
@@ -117,11 +138,8 @@ export default class Sortable {
   public destroy (): void {
     this.unbindAll();
     if (this._drag) this._endDrag(true);
-    if (this._rafId) {
-      cancelAnimationFrame(this._rafId);
-      this._rafId = 0;
-    }
-    this._pendingMove = null;
+    this._cancelFrames();
+    this._lastPointer = null;
     this._clearCache();
   }
 
@@ -193,6 +211,7 @@ export default class Sortable {
       offsetX: nativeEvent.clientX - rect.left,
       offsetY: nativeEvent.clientY - rect.top,
     };
+    this._lastPointer = { clientX: nativeEvent.clientX, clientY: nativeEvent.clientY };
 
     // Route all subsequent pointer events for this pointer ID to captureEl,
     // even when the pointer moves outside it. Releases automatically on pointerup/cancel.
@@ -203,7 +222,7 @@ export default class Sortable {
     $(captureEl).on("pointerup.sortable-drag pointercancel.sortable-drag", (e: SortablePointerEvent) => this.onPointerUp(e));
 
     // Insert placeholder at original position, then hide original
-    this._createPlaceholder(itemEl);
+    this._createPlaceholder(itemEl, rect);
     itemEl.parentNode.insertBefore(this.$placeholder[0], itemEl);
     $(itemEl).addClass("dragging");
 
@@ -224,16 +243,18 @@ export default class Sortable {
       });
     }
 
-    // Coalesce placeholder updates to at most one per animation frame
-    this._pendingMove = { clientX: nativeEvent.clientX, clientY: nativeEvent.clientY };
+    // Coalesce placeholder updates to at most one per animation frame,
+    // always using the newest pointer position
+    this._lastPointer = { clientX: nativeEvent.clientX, clientY: nativeEvent.clientY };
     if (!this._rafId) {
       this._rafId = requestAnimationFrame(() => {
         this._rafId = 0;
-        const m = this._pendingMove;
-        this._pendingMove = null;
-        if (m) this._repositionPlaceholder(m.clientX, m.clientY);
+        if (this._drag && this._lastPointer)
+          this._repositionPlaceholder(this._lastPointer.clientX, this._lastPointer.clientY);
       });
     }
+
+    this._startAutoScroll();
   }
 
   public onPointerUp (event: SortablePointerEvent): void {
@@ -242,6 +263,13 @@ export default class Sortable {
     if (nativeEvent.pointerId !== this._drag.pointerId) return;
 
     const cancelled = nativeEvent.type === "pointercancel";
+    if (!cancelled) {
+      // Resolve the drop slot from the release position right now; a pending
+      // placeholder frame may not have run yet, and the commit must not use a stale slot
+      this._lastPointer = { clientX: nativeEvent.clientX, clientY: nativeEvent.clientY };
+      this._cancelFrames();
+      this._repositionPlaceholder(this._lastPointer.clientX, this._lastPointer.clientY);
+    }
     this._endDrag(cancelled);
   }
 
@@ -254,12 +282,9 @@ export default class Sortable {
     if (!this._drag) return;
     const { el, originNextSibling } = this._drag;
 
-    // Cancel any pending placeholder RAF
-    if (this._rafId) {
-      cancelAnimationFrame(this._rafId);
-      this._rafId = 0;
-    }
-    this._pendingMove = null;
+    // Cancel any pending placeholder / autoscroll frames
+    this._cancelFrames();
+    this._lastPointer = null;
 
     // Unbind per-element drag events (pointer capture auto-releases)
     $(this._drag.captureEl).off(".sortable-drag");
@@ -293,12 +318,87 @@ export default class Sortable {
   }
 
 
+  private _cancelFrames (): void {
+    if (this._rafId) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = 0;
+    }
+    if (this._scrollRafId) {
+      cancelAnimationFrame(this._scrollRafId);
+      this._scrollRafId = 0;
+    }
+    this._scrollLastTs = 0;
+  }
+
+
+  // ======================================== //
+  // ============ Edge Autoscroll =========== //
+  // ======================================== //
+
+  /**
+   * Scroll speed for a pointer at the given viewport Y, in pixels per second.
+   * Ramps linearly from 0 at the inner edge of the zone to the maximum at the viewport edge.
+   * @returns Negative near the top, positive near the bottom, 0 elsewhere
+   */
+  private _autoScrollSpeed (clientY: number): number {
+    const edge = Math.min(AUTOSCROLL_EDGE, window.innerHeight / 4);
+    if (edge <= 0) return 0;
+
+    // A captured mouse/pen pointer can report positions outside the viewport;
+    // treat those as being at the edge so the speed never exceeds the maximum
+    const y = Math.min(Math.max(clientY, 0), window.innerHeight);
+
+    if (y < edge) return -AUTOSCROLL_MAX_SPEED * ((edge - y) / edge);
+    const fromBottom = window.innerHeight - y;
+    if (fromBottom < edge) return AUTOSCROLL_MAX_SPEED * ((edge - fromBottom) / edge);
+    return 0;
+  }
+
+  private _startAutoScroll (): void {
+    if (!this._drag || !this._lastPointer || this._scrollRafId) return;
+    if (this._autoScrollSpeed(this._lastPointer.clientY) === 0) return;
+
+    this._scrollLastTs = 0;
+    this._scrollRafId = requestAnimationFrame((ts) => this._autoScrollStep(ts));
+  }
+
+  private _autoScrollStep (timestamp: DOMHighResTimeStamp): void {
+    this._scrollRafId = 0;
+    if (!this._drag || !this._lastPointer) return;
+
+    const speed = this._autoScrollSpeed(this._lastPointer.clientY);
+    if (speed === 0) {
+      this._scrollLastTs = 0;
+      return;
+    }
+
+    // First frame of a run has no previous timestamp; assume a typical frame
+    const elapsed = this._scrollLastTs ? timestamp - this._scrollLastTs : 16;
+    this._scrollLastTs = timestamp;
+    const dt = Math.min(Math.max(elapsed, 0), AUTOSCROLL_MAX_FRAME) / 1000;
+
+    const before = window.scrollY;
+    window.scrollBy(0, speed * dt);
+    if (window.scrollY === before) {
+      // Top or bottom of the page; resumes on the next pointermove into the zone
+      this._scrollLastTs = 0;
+      return;
+    }
+
+    // The document moved under a pointer that may be stationary, so re-resolve
+    // the drop slot without waiting for a pointermove
+    this._repositionPlaceholder(this._lastPointer.clientX, this._lastPointer.clientY);
+    this._scrollRafId = requestAnimationFrame((ts) => this._autoScrollStep(ts));
+  }
+
+
   // ======================================== //
   // ========== Ghost & Placeholder ========= //
   // ======================================== //
 
   private _createGhost (refEl: HTMLElement, rect: DOMRect, clientX: number, clientY: number): void {
     this.$ghost = $(refEl.cloneNode(true) as HTMLElement)
+      .removeClass("dragging")
       .addClass("sortable-ghost")
       .css({
         position: "fixed",
@@ -313,11 +413,21 @@ export default class Sortable {
       .appendTo(document.body);
   }
 
-  private _createPlaceholder (refEl: HTMLElement): void {
+  /**
+   * Builds the drop-position placeholder, sized to the dragged item's rendered box so it
+   * takes the same footprint. Alignment within a grid track is left to CSS.
+   * @param refEl The dragged item
+   * @param rect The dragged item's rendered box
+   */
+  private _createPlaceholder (refEl: HTMLElement, rect: DOMRect): void {
     const tag = refEl?.tagName || "LI";
     this.$placeholder = $<HTMLElement>(`<${tag}>`)
       .addClass("sortable-placeholder")
-      .attr("aria-hidden", "true");
+      .attr("aria-hidden", "true")
+      .css({
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+      });
   }
 
   private _repositionPlaceholder (clientX: number, clientY: number): void {
@@ -334,14 +444,13 @@ export default class Sortable {
     if (!itemEl || itemEl === ph || itemEl === this._drag.el) return;
     if (!this.$container[0].contains(itemEl)) return;
 
-    const rect = itemEl.getBoundingClientRect();
-    const before = (clientX - rect.left) < rect.width / 2;
-
-    if (before) {
-      if (ph.nextSibling !== itemEl) itemEl.parentNode.insertBefore(ph, itemEl);
-    } else {
-      if (itemEl.nextSibling !== ph) itemEl.parentNode.insertBefore(ph, itemEl.nextSibling);
-    }
+    // Slot-based targeting: an item's whole box is one destination, so the placeholder
+    // takes over the slot that item currently shows in. Moving past it in DOM order does
+    // exactly that, whether the item is in the same row or the grid wraps in between.
+    // The hidden source takes no visual slot, so it doesn't affect the result.
+    const itemFollowsPlaceholder = ph.compareDocumentPosition(itemEl) & Node.DOCUMENT_POSITION_FOLLOWING;
+    if (itemFollowsPlaceholder) itemEl.parentNode.insertBefore(ph, itemEl.nextSibling);
+    else itemEl.parentNode.insertBefore(ph, itemEl);
   }
 
 
