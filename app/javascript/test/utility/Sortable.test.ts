@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import Sortable from "@/utility/sortable";
+import Sortable from "@/utility/Sortable";
 
 // Internal state the tests assert on to prove nothing is left behind after a drag.
 interface SortableInternals {
