@@ -21,10 +21,11 @@ export default class Offclick {
       for (const entry of this.registry) {
         if (entry.disabled) continue;
 
-        if (target.closest(entry.menuSelector).length > 0 // Click inside the menu
-            || target.is(entry.buttonSelector) // Click the button itself
-            || target.parents(entry.buttonSelector).length > 0 // Click inside one of the button's children
-            || target.closest("ul.ui-autocomplete-dropdown").length > 0 // Click inside an autocomplete dropdown
+        if (
+          target.closest(entry.menuSelector).length > 0 // Click inside the menu
+          || target.is(entry.buttonSelector) // Click the button itself
+          || target.parents(entry.buttonSelector).length > 0 // Click inside one of the button's children
+          || target.closest("ul.ui-autocomplete-dropdown").length > 0 // Click inside an autocomplete dropdown
         )
           continue;
 

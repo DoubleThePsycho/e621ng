@@ -110,17 +110,48 @@ describe("PostCache", () => {
     it("falls back to defaults for missing attributes", async () => {
       const PostCache = await load();
       const post = PostCache.fromThumbnail(thumb({
-        "tags": "", "flags": "", "pools": null, "width": null, "height": null, "size": null,
-        "score": null, "fav-count": null, "is-favorited": null, "comment-count": null,
-        "uploader": null, "uploader-id": null, "file-ext": null, "duration": null,
-        "md5": null, "preview-url": null, "preview-webp": null, "sample-url": null, "file-url": null,
+        "tags": "",
+        "flags": "",
+        "pools": null,
+        "width": null,
+        "height": null,
+        "size": null,
+        "score": null,
+        "fav-count": null,
+        "is-favorited": null,
+        "comment-count": null,
+        "uploader": null,
+        "uploader-id": null,
+        "file-ext": null,
+        "duration": null,
+        "md5": null,
+        "preview-url": null,
+        "preview-webp": null,
+        "sample-url": null,
+        "file-url": null,
       }));
       expect(post).toMatchObject({
-        tags: [], tag_string: "", tagcount: 0, flags: [], pools: [],
-        width: -1, height: -1, size: -1, uploader_id: -1,
-        score: 0, fav_count: 0, is_favorited: false, comment_count: 0,
-        uploader: "", file_ext: "", duration: 0,
-        md5: "", preview_url: "", preview_webp: "", sample_url: "", file_url: "",
+        tags: [],
+        tag_string: "",
+        tagcount: 0,
+        flags: [],
+        pools: [],
+        width: -1,
+        height: -1,
+        size: -1,
+        uploader_id: -1,
+        score: 0,
+        fav_count: 0,
+        is_favorited: false,
+        comment_count: 0,
+        uploader: "",
+        file_ext: "",
+        duration: 0,
+        md5: "",
+        preview_url: "",
+        preview_webp: "",
+        sample_url: "",
+        file_url: "",
       });
       expect(post!.isUnavailable).toBe(true);
     });
@@ -164,8 +195,15 @@ describe("PostCache", () => {
     it("fills in defaults for a deleted post", async () => {
       const PostCache = await load();
       const post = PostCache.fromDeferredPosts(42, {
-        ...DEFERRED, tags: "", flags: "deleted", pools: "",
-        md5: undefined, preview_url: undefined, preview_webp: undefined, sample_url: undefined, file_url: undefined,
+        ...DEFERRED,
+        tags: "",
+        flags: "deleted",
+        pools: "",
+        md5: undefined,
+        preview_url: undefined,
+        preview_webp: undefined,
+        sample_url: undefined,
+        file_url: undefined,
       });
       expect(post).toMatchObject({ tags: [], tagcount: 0, flags: ["deleted"], pools: [], md5: "", preview_url: "", file_url: "" });
       expect(post!.isDeleted).toBe(true);

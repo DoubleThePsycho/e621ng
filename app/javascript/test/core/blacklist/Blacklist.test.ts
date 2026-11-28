@@ -11,10 +11,25 @@ function thumb (tags: string, id = POST_ID): JQuery<HTMLElement> {
 }
 
 const DEFERRED = {
-  tags: "", flags: "", pools: "", rating: "s" as const, file_ext: "png",
-  width: 10, height: 10, size: 10, uploader: "x", uploader_id: 1,
-  score: 0, fav_count: 0, is_favorited: false, comment_count: 0,
-  md5: "abc", preview_url: "/p.jpg", preview_webp: "", sample_url: "", file_url: "",
+  tags: "",
+  flags: "",
+  pools: "",
+  rating: "s" as const,
+  file_ext: "png",
+  width: 10,
+  height: 10,
+  size: 10,
+  uploader: "x",
+  uploader_id: 1,
+  score: 0,
+  fav_count: 0,
+  is_favorited: false,
+  comment_count: 0,
+  md5: "abc",
+  preview_url: "/p.jpg",
+  preview_webp: "",
+  sample_url: "",
+  file_url: "",
 };
 
 async function load (blacklist: string[] = ["hidden_tag"]) {

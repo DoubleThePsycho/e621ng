@@ -47,7 +47,7 @@ export default abstract class Provider<T extends AutocompleteItem = Autocomplete
   public insert (input: HTMLInputElement, completion: string) {
     input.value = completion;
     input.selectionStart = input.selectionEnd = completion.length;
-    input.dispatchEvent(new Event("input", {bubbles: true}));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   /**

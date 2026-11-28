@@ -61,7 +61,12 @@ describe("Post", () => {
       expect(url).toBe("/staff/post/posts/42/delete.json");
       expect(init.method).toBe("POST");
       expect(JSON.parse(init.body as string)).toEqual({
-        commit: "Delete", reason: "dupe", from_flag: false, move_favorites: false, dmail: null, dmail_title: null,
+        commit: "Delete",
+        reason: "dupe",
+        from_flag: false,
+        move_favorites: false,
+        dmail: null,
+        dmail_title: null,
       });
       expect(queue.mock.calls[0][1]).toEqual({ name: "Post.delete_with_reason" });
     });
@@ -74,7 +79,12 @@ describe("Post", () => {
       await Post.delete(42, { reason: "", from_flag: true, move_favorites: true, dmail: "Body", dmail_title: "Title" });
 
       expect(JSON.parse(lastFetch(fetchSpy).init.body as string)).toEqual({
-        commit: "Delete", reason: "", from_flag: true, move_favorites: true, dmail: "Body", dmail_title: "Title",
+        commit: "Delete",
+        reason: "",
+        from_flag: true,
+        move_favorites: true,
+        dmail: "Body",
+        dmail_title: "Title",
       });
     });
 

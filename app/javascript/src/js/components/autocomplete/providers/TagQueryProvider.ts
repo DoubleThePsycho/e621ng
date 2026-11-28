@@ -99,7 +99,7 @@ export default class TagQueryProvider extends Provider<Types.AutocompleteItem> {
     input.value = finalValue;
     input.selectionStart = input.selectionEnd = newBeforeCaret.length + (needsSpace ? 1 : 0);
 
-    input.dispatchEvent(new Event("input", {bubbles: true}));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   private parseTagQuery (text: string, caret: number): { metatag: string, term: string, prefix: string } {

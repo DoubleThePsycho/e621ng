@@ -19,9 +19,6 @@ const sharedPlugins = {
 
 // https://eslint.style/packages/js
 const sharedRules = {
-  "@stylistic/array-bracket-newline": "warn",
-  "@stylistic/array-bracket-spacing": "off",
-  "@stylistic/array-element-newline": ["warn", "consistent"],
   "@stylistic/arrow-parens": "off",
   "@stylistic/arrow-spacing": "warn",
   "@stylistic/block-spacing": "warn",
@@ -32,7 +29,6 @@ const sharedRules = {
   "@stylistic/computed-property-spacing": "warn",
   "@stylistic/dot-location": ["warn", "property"],
   "@stylistic/eol-last": "warn",
-  "@stylistic/function-call-argument-newline": ["warn", "consistent"],
   "@stylistic/function-call-spacing": "warn",
   "@stylistic/implicit-arrow-linebreak": "warn",
   "@stylistic/indent": ["warn", 2, { SwitchCase: 1, }],
@@ -42,6 +38,7 @@ const sharedRules = {
   "@stylistic/linebreak-style": "error",
   "@stylistic/lines-around-comment": "off",
   "@stylistic/lines-between-class-members": ["warn", "always", { exceptAfterSingleLine: true }],
+  "@stylistic/list-style": "warn",
   // "@stylistic/max-len": ["warn", { code: 100, tabWidth: 2, ignoreComments: true }], // Might get annoying, see https://eslint.style/rules/js/max-len
   "@stylistic/max-statements-per-line": ["warn", { "max": 2 }],
   "@stylistic/multiline-comment-style": "off",
@@ -60,7 +57,6 @@ const sharedRules = {
   "@stylistic/no-trailing-spaces": ["warn", { ignoreComments: true, }],
   "@stylistic/no-whitespace-before-property": "warn",
   "@stylistic/nonblock-statement-body-position": "off",
-  "@stylistic/object-curly-newline": ["warn", { consistent: true }],
   "@stylistic/one-var-declaration-per-line": "off",
   "@stylistic/operator-linebreak": ["warn", "before"],
   "@stylistic/padded-blocks": "off",

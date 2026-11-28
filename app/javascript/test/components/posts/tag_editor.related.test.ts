@@ -41,8 +41,12 @@ describe("posts/tag_editor — findRelated", () => {
 
   it("maps every category link to its canonical id", async () => {
     const expected: Record<string, string> = {
-      Artists: "1", Contributors: "2", Copyrights: "3",
-      Characters: "4", Species: "5", Metatags: "7",
+      Artists: "1",
+      Contributors: "2",
+      Copyrights: "3",
+      Characters: "4",
+      Species: "5",
+      Metatags: "7",
     };
     for (const [label, id] of Object.entries(expected)) {
       const { wrapper, fetchCalls, restore } = await mountTagEditor();

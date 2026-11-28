@@ -12,7 +12,13 @@ function stagedElement (overrides: Record<string, string | undefined> = {}): HTM
   const element = document.createElement("article");
   element.className = "staged-note";
   const data: Record<string, string | undefined> = {
-    id: "7", x: "200", y: "200", width: "400", height: "200", body: "hello", ...overrides,
+    id: "7",
+    x: "200",
+    y: "200",
+    width: "400",
+    height: "200",
+    body: "hello",
+    ...overrides,
   };
   for (const [key, value] of Object.entries(data))
     if (value !== undefined) element.dataset[key] = value;

@@ -2,12 +2,27 @@ import { describe, expect, it } from "vitest";
 import { setSiteData } from "../helpers";
 
 const BASE = {
-  id: 42, tags: "fox wolf", flags: "", rating: "q", pools: "",
-  file_ext: "png", duration: null as number | null, width: 1000, height: 800, size: 12345,
-  score: 5, fav_count: 7, is_favorited: false, comment_count: 3,
-  uploader: "Someone", uploader_id: 9, md5: "abc",
-  preview_url: "/data/preview/abc.jpg", preview_webp: "/data/preview/abc.webp",
-  sample_url: "/data/sample/abc.jpg", file_url: "/data/abc.png",
+  id: 42,
+  tags: "fox wolf",
+  flags: "",
+  rating: "q",
+  pools: "",
+  file_ext: "png",
+  duration: null as number | null,
+  width: 1000,
+  height: 800,
+  size: 12345,
+  score: 5,
+  fav_count: 7,
+  is_favorited: false,
+  comment_count: 3,
+  uploader: "Someone",
+  uploader_id: 9,
+  md5: "abc",
+  preview_url: "/data/preview/abc.jpg",
+  preview_webp: "/data/preview/abc.webp",
+  sample_url: "/data/sample/abc.jpg",
+  file_url: "/data/abc.png",
 };
 
 type Overrides = Partial<typeof BASE>;

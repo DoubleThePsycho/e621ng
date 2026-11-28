@@ -46,7 +46,7 @@ PostVersion.undo_selected = function (event) {
     let id = $(row).data("post-version-id");
 
     promises.push(TaskQueue.add(() => {
-      $.ajax(`/post_versions/${id}/undo.json`, {method: "PUT"});
+      $.ajax(`/post_versions/${id}/undo.json`, { method: "PUT" });
 
       toast.message = `${++PostVersion.updated} / ${selected_rows.length} changes undone.`;
     }, { name: "PostVersion.undo_selected" }));

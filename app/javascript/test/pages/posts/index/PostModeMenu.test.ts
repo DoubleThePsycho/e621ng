@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const bulk = {
-  update: vi.fn(), favorite: vi.fn(), unfavorite: vi.fn(), vote: vi.fn(), delete: vi.fn(),
-  undelete: vi.fn(), unflag: vi.fn(), approve: vi.fn(), applyTagDiff: vi.fn(), syncThumbnail: vi.fn(),
+  update: vi.fn(),
+  favorite: vi.fn(),
+  unfavorite: vi.fn(),
+  vote: vi.fn(),
+  delete: vi.fn(),
+  undelete: vi.fn(),
+  unflag: vi.fn(),
+  approve: vi.fn(),
+  applyTagDiff: vi.fn(),
+  syncThumbnail: vi.fn(),
 };
 const postSet = { add_post: vi.fn(), remove_post: vi.fn(), populateSelect: vi.fn() };
 const hotkeys = { enabled: true, listeners: new Map<string, () => void>(), register (name: string, listener: () => void) { this.listeners.set(name, listener); } };

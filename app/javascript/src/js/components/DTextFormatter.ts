@@ -249,8 +249,7 @@ export default class DTextFormatter {
       const count = this.text.length;
       counter.text(this.characterLimit
         ? `${count} / ${this.characterLimit}`
-        : `${count}`,
-      );
+        : `${count}`);
     });
 
     if (this.text.length > 0)

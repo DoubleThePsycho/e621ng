@@ -49,8 +49,15 @@ export function removeMeta (name: string): void {
 // Canonical tag-category id map (TagCategory::CANONICAL_MAPPING). The back-end emits
 // this as the `tag-category-ids` meta on every page, so the harness seeds it globally.
 export const TAG_CATEGORY_IDS: Record<string, number> = {
-  General: 0, Artist: 1, Contributor: 2, Copyright: 3, Character: 4,
-  Species: 5, Invalid: 6, Meta: 7, Lore: 8,
+  General: 0,
+  Artist: 1,
+  Contributor: 2,
+  Copyright: 3,
+  Character: 4,
+  Species: 5,
+  Invalid: 6,
+  Meta: 7,
+  Lore: 8,
 };
 
 /** Seed the ambient `tag-category-ids` meta (mirrors _head.html.erb). */
