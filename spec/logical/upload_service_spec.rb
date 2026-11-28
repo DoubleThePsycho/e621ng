@@ -545,6 +545,81 @@ RSpec.describe UploadService do
         expect(service.convert_to_post(upload).is_pending).to be true
       end
 
+      it "does not mark a post as pending if the uploader is the unique verified DNP artist" do
+        artist = create(:artist, linked_user_id: upload.uploader.id)
+        create(:avoid_posting, artist: artist)
+        upload.tag_string = artist.name
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be false
+      end
+
+      it "marks a post as pending if the uploader is one of multiple verified DNP artists (others verified)" do
+        artist1 = create(:artist, linked_user_id: upload.uploader.id)
+        artist2 = create(:artist, linked_user_id: create(:user).id)
+        create(:avoid_posting, artist: artist1)
+        create(:avoid_posting, artist: artist2)
+        upload.tag_string = "#{artist1.name} #{artist2.name}"
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be true
+      end
+
+      it "marks a post as pending if the uploader is one of multiple verified DNP artists (others not verified)" do
+        artist1 = create(:artist, linked_user_id: upload.uploader.id)
+        artist2 = create(:artist)
+        create(:avoid_posting, artist: artist1)
+        create(:avoid_posting, artist: artist2)
+        upload.tag_string = "#{artist1.name} #{artist2.name}"
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be true
+      end
+
+      it "does not mark a post as pending if the uploader is the unique verified DNP artist along with other non-DNP artists" do
+        artist1 = create(:artist, linked_user_id: upload.uploader.id)
+        artist2 = create(:artist)
+        create(:avoid_posting, artist: artist1)
+        upload.tag_string = "#{artist1.name} #{artist2.name}"
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be false
+      end
+
+      it "marks a post as pending if the only DNP artist is linked to a different user" do
+        artist = create(:artist, linked_user_id: create(:user).id)
+        create(:avoid_posting, artist: artist)
+        upload.tag_string = artist.name
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be true
+      end
+
+      it "does not mark a post as pending if every DNP artist is linked to the uploader" do
+        artist1 = create(:artist, linked_user_id: upload.uploader.id)
+        artist2 = create(:artist, linked_user_id: upload.uploader.id)
+        create(:avoid_posting, artist: artist1)
+        create(:avoid_posting, artist: artist2)
+        upload.tag_string = "#{artist1.name} #{artist2.name}"
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be false
+      end
+
+      it "marks a post as pending if a character DNP entry is not linked to the uploader" do
+        artist = create(:artist, linked_user_id: upload.uploader.id)
+        owner = create(:artist)
+        Tag.find_by!(name: owner.name).update_columns(category: Tag.categories.character)
+        create(:avoid_posting, artist: artist)
+        create(:avoid_posting, artist: owner)
+        upload.tag_string = "#{artist.name} #{owner.name}"
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be true
+      end
+
+      it "does not mark a post as pending if a character DNP entry is linked to the uploader" do
+        owner = create(:artist, linked_user_id: upload.uploader.id)
+        Tag.find_by!(name: owner.name).update_columns(category: Tag.categories.character)
+        create(:avoid_posting, artist: owner)
+        upload.tag_string = owner.name
+        allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: false)
+        expect(service.convert_to_post(upload).is_pending).to be false
+      end
+
       it "marks post as pending when upload_as_pending? is true" do
         allow(upload.uploader).to receive_messages(upload_free?: true, can_approve_posts?: true)
         allow(upload).to receive(:upload_as_pending?).and_return(true)
