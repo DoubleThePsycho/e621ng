@@ -1,5 +1,5 @@
 export default class TimingUtils {
-  public static debounce<P extends any[]>(func: (...args: P) => void, delay: number): (...args: P) => void {
+  public static debounce<P extends any[]> (func: (...args: P) => void, delay: number): (...args: P) => void {
     let timer: number;
 
     return (...args: P) => {
@@ -10,7 +10,7 @@ export default class TimingUtils {
     };
   }
 
-  public static throttle<P extends any[]>(func: (...args: P) => void, limit: number): (...args: P) => void {
+  public static throttle<P extends any[]> (func: (...args: P) => void, limit: number): (...args: P) => void {
     let inThrottle: boolean;
 
     return (...args: P) => {
