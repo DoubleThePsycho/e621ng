@@ -113,6 +113,7 @@
 
     // Imported from #page, same as the posts#index content area
     padding: 0.5rem 0.25rem theme.get("content-padding-bottom");
+    border-radius: 0; // Reset .simple_form
     background-color: theme.color("foreground");
     background-image: theme.image("foreground");
     background-position: theme.image("foreground-position");
