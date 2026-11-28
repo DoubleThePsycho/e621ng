@@ -25,6 +25,7 @@
  * // Cleanup
  * sortable.destroy();
  */
+
 /** Distance from the top/bottom viewport edge at which a drag starts scrolling the page. */
 const AUTOSCROLL_EDGE = 60;
 
@@ -43,6 +44,11 @@ export interface SortableOptions {
   idDataKey?: string;
   /** Fired after a successful drop with the item IDs in their new order. */
   onReorder?: SortableReorderCallback;
+  /**
+   * Height in pixels of whatever covers the top of the viewport (e.g. a sticky header).
+   * The top autoscroll zone starts below it. Read on every autoscroll check.
+   */
+  autoScrollTopInset?: () => number;
 }
 
 export type SortableReorderCallback = (ids: string[]) => void;
@@ -53,6 +59,7 @@ interface SortableSettings {
   handleSelector: string | null;
   idDataKey: string;
   onReorder: SortableReorderCallback | null;
+  autoScrollTopInset: (() => number) | null;
 }
 
 interface DragState {
@@ -101,6 +108,8 @@ export default class Sortable {
   /** Edge autoscroll loop */
   private _scrollRafId: number;
   private _scrollLastTs: DOMHighResTimeStamp;
+  /** Sub-pixel scroll distance carried over to the next frame */
+  private _scrollRemainder: number;
 
   private $ghost: JQuery<HTMLElement> | null = null;
   private $placeholder: JQuery<HTMLElement> | null = null;
@@ -122,6 +131,7 @@ export default class Sortable {
       handleSelector: options.handleSelector || null,
       idDataKey: options.idDataKey || "id",
       onReorder: typeof options.onReorder === "function" ? options.onReorder : null,
+      autoScrollTopInset: typeof options.autoScrollTopInset === "function" ? options.autoScrollTopInset : null,
     };
 
     this._drag = null;
@@ -129,6 +139,7 @@ export default class Sortable {
     this._lastPointer = null;
     this._scrollRafId = 0;
     this._scrollLastTs = 0;
+    this._scrollRemainder = 0;
 
     this._rebuildIndex();
     this.bindAll();
@@ -328,6 +339,7 @@ export default class Sortable {
       this._scrollRafId = 0;
     }
     this._scrollLastTs = 0;
+    this._scrollRemainder = 0;
   }
 
 
@@ -341,14 +353,17 @@ export default class Sortable {
    * @returns Negative near the top, positive near the bottom, 0 elsewhere
    */
   private _autoScrollSpeed (clientY: number): number {
-    const edge = Math.min(AUTOSCROLL_EDGE, window.innerHeight / 4);
+    const inset = this.settings.autoScrollTopInset ? this.settings.autoScrollTopInset() : 0;
+    const top = Math.min(Math.max(inset || 0, 0), window.innerHeight / 2);
+    const edge = Math.min(AUTOSCROLL_EDGE, (window.innerHeight - top) / 4);
     if (edge <= 0) return 0;
 
-    // A captured mouse/pen pointer can report positions outside the viewport;
-    // treat those as being at the edge so the speed never exceeds the maximum
-    const y = Math.min(Math.max(clientY, 0), window.innerHeight);
+    // A captured mouse/pen pointer can report positions outside the viewport, and the
+    // pointer can sit over the top inset; treat those as being at the edge so the speed
+    // never exceeds the maximum
+    const y = Math.min(Math.max(clientY, top), window.innerHeight);
 
-    if (y < edge) return -AUTOSCROLL_MAX_SPEED * ((edge - y) / edge);
+    if (y - top < edge) return -AUTOSCROLL_MAX_SPEED * ((edge - (y - top)) / edge);
     const fromBottom = window.innerHeight - y;
     if (fromBottom < edge) return AUTOSCROLL_MAX_SPEED * ((edge - fromBottom) / edge);
     return 0;
@@ -359,6 +374,7 @@ export default class Sortable {
     if (this._autoScrollSpeed(this._lastPointer.clientY) === 0) return;
 
     this._scrollLastTs = 0;
+    this._scrollRemainder = 0;
     this._scrollRafId = requestAnimationFrame((ts) => this._autoScrollStep(ts));
   }
 
@@ -369,6 +385,7 @@ export default class Sortable {
     const speed = this._autoScrollSpeed(this._lastPointer.clientY);
     if (speed === 0) {
       this._scrollLastTs = 0;
+      this._scrollRemainder = 0;
       return;
     }
 
@@ -377,11 +394,22 @@ export default class Sortable {
     this._scrollLastTs = timestamp;
     const dt = Math.min(Math.max(elapsed, 0), AUTOSCROLL_MAX_FRAME) / 1000;
 
+    // Browsers may drop sub-pixel scrolls, so only scroll by whole pixels and carry
+    // the rest over; slow speeds then still add up instead of looking like the page end
+    const distance = (speed * dt) + this._scrollRemainder;
+    const step = Math.trunc(distance);
+    this._scrollRemainder = distance - step;
+    if (step === 0) {
+      this._scrollRafId = requestAnimationFrame((ts) => this._autoScrollStep(ts));
+      return;
+    }
+
     const before = window.scrollY;
-    window.scrollBy(0, speed * dt);
+    window.scrollBy(0, step);
     if (window.scrollY === before) {
       // Top or bottom of the page; resumes on the next pointermove into the zone
       this._scrollLastTs = 0;
+      this._scrollRemainder = 0;
       return;
     }
 

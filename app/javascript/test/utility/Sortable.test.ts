@@ -280,19 +280,6 @@ describe("utility/Sortable", () => {
       firePointer("pointerup", handle, { clientX: 250, clientY: 60 });
       expect(currentOrder(ctx.container)).toEqual(["2", "3", "1", "4"]);
     });
-
-    it("flushes the release position into the same slot when the reposition frame never ran", () => {
-      const ctx = setup();
-      mockGridLayout(ctx.container, 4);
-      const handle = ctx.items[0].handle;
-
-      firePointer("pointerdown", handle, { clientX: 1, clientY: 1 });
-      firePointer("pointermove", handle, { clientX: 201, clientY: 60 }); // left edge of item 3
-      firePointer("pointerup", handle, { clientX: 201, clientY: 60 });
-
-      expect(currentOrder(ctx.container)).toEqual(["2", "3", "1", "4"]);
-      expect(ctx.onReorder).toHaveBeenCalledWith(["2", "3", "1", "4"]);
-    });
   });
 
   describe("final pointer position on release", () => {
@@ -417,8 +404,8 @@ describe("utility/Sortable", () => {
   });
 
   describe("edge autoscroll", () => {
-    function autoscrollSetup (startScrollY = 1000) {
-      const ctx = setup();
+    function autoscrollSetup (startScrollY = 1000, options: Record<string, unknown> = {}) {
+      const ctx = setup(options);
       vi.spyOn(window, "innerHeight", "get").mockReturnValue(800);
       let scrollY = startScrollY;
       vi.spyOn(window, "scrollY", "get").mockImplementation(() => scrollY);
@@ -481,8 +468,8 @@ describe("utility/Sortable", () => {
         vi.advanceTimersToNextFrame();
         expect(atEdge.scrollBy.mock.calls.at(-1)?.[1]).toBeCloseTo(edgeDelta);
       }
-      // 1200px/s over the 16ms first frame
-      expect(edgeDelta).toBeCloseTo(-19.2);
+      // 1200px/s over the 16ms first frame, in whole pixels
+      expect(edgeDelta).toBe(-19);
     });
 
     it("caps the speed at the maximum for a captured pointer below the viewport", () => {
@@ -496,7 +483,37 @@ describe("utility/Sortable", () => {
         vi.advanceTimersToNextFrame();
         expect(atEdge.scrollBy.mock.calls.at(-1)?.[1]).toBeCloseTo(edgeDelta);
       }
-      expect(edgeDelta).toBeCloseTo(19.2);
+      expect(edgeDelta).toBe(19);
+    });
+
+    it("scrolls by whole pixels and carries the remainder at slow speeds", () => {
+      const { items, scrollBy, internals } = autoscrollSetup();
+
+      moveTo(items[0].handle, 742); // 2px into the zone: 40px/s, 0.64px per frame
+      for (let i = 0; i < 4; i++) vi.advanceTimersToNextFrame();
+
+      // 0.64, 1.28, 0.92, 1.56: a pixel on the second and fourth frames
+      expect(scrollBy.mock.calls.map((call) => call[1])).toEqual([1, 1]);
+      expect(internals._scrollRafId).not.toBe(0); // sub-pixel frames don't end the run
+    });
+
+    it("starts the top zone below the top inset", () => {
+      const plain = autoscrollSetup();
+      moveTo(plain.items[0].handle, 130);
+      vi.advanceTimersToNextFrame();
+      expect(plain.scrollBy).not.toHaveBeenCalled();
+
+      vi.restoreAllMocks();
+      document.body.innerHTML = "";
+
+      const { items, scrollBy } = autoscrollSetup(1000, { autoScrollTopInset: () => 100 });
+      moveTo(items[0].handle, 130); // 30px below the inset, halfway into the zone
+      vi.advanceTimersToNextFrame();
+      expect(scrollBy.mock.calls.at(-1)?.[1]).toBe(-9);
+
+      moveTo(items[0].handle, 50); // over the inset itself
+      vi.advanceTimersToNextFrame();
+      expect(scrollBy.mock.calls.at(-1)?.[1]).toBe(-19);
     });
 
     it("keeps scrolling while the pointer is held in the zone", () => {

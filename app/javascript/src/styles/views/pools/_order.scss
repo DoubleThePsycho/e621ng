@@ -17,3 +17,54 @@
     z-index: 10; // Above thumbnail labels
   }
 }
+
+// Pool ordering grid. Layout and card sizing come entirely from section.posts-container,
+// so the grid follows the same Small / Medium / Large sizes and breakpoints as /posts.
+#c-pool-orders section.posts-container.sortable {
+  // Each card sits in a wrapper (for the move handle), so the wrapper takes the card's
+  // place in the grid track. The placeholder shares the same footprint so swapping one
+  // for the other never shifts the box.
+  .sortable-thumbnail,
+  .sortable-placeholder {
+    width: 100%;
+    max-width: var(--thumb-image-max);
+    justify-self: center;
+    box-sizing: border-box;
+  }
+
+  .sortable-thumbnail {
+    position: relative;
+
+    &.dragging {
+      display: none;
+      pointer-events: none;
+    }
+  }
+
+  // The flagged/pending ribbon shares the corner with the move handle and isn't useful
+  // while ordering; the parent/child ribbon on the left stays.
+  article.thumbnail .ribbon.right { display: none; }
+}
+
+// The drag ghost is a clone of the card appended to <body>, outside #c-pool-orders;
+// keep the flagged/pending ribbon hidden on it as well.
+.sortable-ghost.sortable-thumbnail article.thumbnail .ribbon.right { display: none; }
+
+// Stand-in for a post the viewer can't see (safe mode / login blocked). It still has to be
+// reorderable, so it takes a card-sized square derived from the grid slot itself.
+.sortable-thumbnail .sortable-hidden-post {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  padding: 0.25rem;
+
+  font-size: 0.75rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+  color: theme.color("text");
+  background: theme.color("section");
+  border-radius: 0.25rem;
+}
